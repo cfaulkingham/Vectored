@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { produce } from 'immer';
 import { triggerDownload } from '../lib/utils';
@@ -178,6 +179,7 @@ export const useProjectManager = ({
             layers: appState.layers,
             activeLayerId: appState.activeLayerId,
             canvasConfig: appState.canvasConfig,
+            guides: appState.guides || [], // Ensure guides are saved, default to empty
         };
         const jsonString = JSON.stringify(projectData, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
@@ -209,6 +211,16 @@ export const useProjectManager = ({
                     const result = event.target?.result as string;
                     const projectData = JSON.parse(result) as AppState; 
                     if (projectData.layers && projectData.canvasConfig) {
+                        // Validate and sanitize data
+                        if (!projectData.guides) {
+                            projectData.guides = [];
+                        }
+                        
+                        projectData.layers.forEach(layer => {
+                            if (!layer.objects) layer.objects = [];
+                            if (!layer.points) layer.points = [];
+                        });
+
                         reset(projectData);
                         const urls = new Set<string>();
                         projectData.layers.forEach((l) => {
