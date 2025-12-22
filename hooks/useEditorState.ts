@@ -26,6 +26,7 @@ export const useEditorState = () => {
       fill: '#ffffff',
       stroke: '#000000',
       strokeWidth: 1,
+      cornerRadius: 0,
       opacity: 1,
       fillOpacity: 1,
       strokeOpacity: 1,
@@ -74,7 +75,8 @@ export const useEditorState = () => {
             ...prev,
             fill: '#ffffff',
             stroke: '#000000',
-            strokeWidth: 1
+            strokeWidth: 1,
+            cornerRadius: 0
         }));
     } else if (['line', 'path'].includes(tool)) {
         setToolSettings(prev => ({

@@ -438,7 +438,7 @@ export const generateSVGString = (appState: AppState, units: Units, options: { i
                 }
             }
             case 'shape': {
-                const pathData = getShapePath(obj.shapeType, obj.width, obj.height);
+                const pathData = getShapePath(obj.shapeType, obj.width, obj.height, obj.cornerRadius);
                 const shapeTransform = `translate(${obj.x}, ${obj.y}) translate(${obj.width/2}, ${obj.height/2}) rotate(${obj.rotation}) skewX(${obj.skewX || 0}) skewY(${obj.skewY || 0}) ${obj.flipX ? 'scale(-1, 1) ' : ''}${obj.flipY ? 'scale(1, -1) ' : ''}translate(${-obj.width/2}, ${-obj.height/2})`;
                 return `<path ${baseProps} ${getStyle()} d="${escapeXml(pathData)}" transform="${shapeTransform}" />`;
             }

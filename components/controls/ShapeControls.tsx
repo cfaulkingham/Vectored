@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { VectorObject, VectorObjectType, TextObject, Layer, PathObject, ShapeType, ShapeObject, Gradient, AlignmentType, LayerSettings, PathGroupObject, BlendMode, Units, ImageObject } from '../../types';
 import { EyedropperIcon } from './Icons';
@@ -236,6 +237,7 @@ export const ShapeControls: React.FC<ShapeControlsProps> = ({
         }
 
         const isImage = selectedObject?.type === 'image';
+        const isRectangle = isSingleSelection && selectedObject?.type === 'shape' && (selectedObject as ShapeObject).shapeType === 'rectangle';
         const step = dimensionUnits === 'px' ? 1 : dimensionUnits === 'mm' ? 0.1 : 0.01;
 
         return (
@@ -306,6 +308,19 @@ export const ShapeControls: React.FC<ShapeControlsProps> = ({
                                 <input type="number" step={step} value={isSingleSelection ? localDims.y : ''} onChange={handleDimChange('y')} onFocus={() => setFocusedDim('y')} onBlur={() => setFocusedDim(null)} disabled={!isSingleSelection} className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-cyan-500 disabled:opacity-50" />
                             </div>
                         </div>
+                        
+                        {isRectangle && (
+                            <div className="mt-4">
+                                <ControlSlider 
+                                    label="Corner Radius" 
+                                    value={selectedObject?.cornerRadius || 0} 
+                                    min={0} max={Math.min(selectedObject?.width || 0, selectedObject?.height || 0) / 2} 
+                                    unit={dimensionUnits}
+                                    onChange={(val) => onUpdateSelectedObjects({ cornerRadius: val })} 
+                                />
+                            </div>
+                        )}
+
                         <div className="mt-3">
                             <ControlSlider 
                                 label="Rotation" 

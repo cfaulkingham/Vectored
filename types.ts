@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 
 /**
@@ -192,6 +191,7 @@ interface BaseVectorObject {
   fill: string | Gradient;
   stroke: string;
   strokeWidth: number;
+  cornerRadius?: number; // Added to support rounded corners
   groupId?: string;
   strokeLinecap?: StrokeLineCap;
   strokeLinejoin?: StrokeLineJoin;

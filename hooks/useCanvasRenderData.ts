@@ -436,7 +436,7 @@ export const useCanvasRenderData = ({ layers, canvasConfig, units, dpi }: UseCan
                     };
                 }
             } else if (obj.type === 'shape') {
-                const pathData = getShapePath(obj.shapeType, obj.width, obj.height);
+                const pathData = getShapePath(obj.shapeType, obj.width, obj.height, obj.cornerRadius);
                 const shapeTransform = `translate(${obj.x}, ${obj.y}) translate(${obj.width/2}, ${obj.height/2}) rotate(${obj.rotation}) skewX(${obj.skewX || 0}) skewY(${obj.skewY || 0}) ${obj.flipX ? 'scale(-1, 1) ' : ''}${obj.flipY ? 'scale(1, -1) ' : ''}translate(${-obj.width/2}, ${-obj.height/2})`;
                 const props = { ...baseProps, d: pathData, transform: shapeTransform };
                 return {key: objectKey, type: 'path', props};
@@ -451,7 +451,7 @@ export const useCanvasRenderData = ({ layers, canvasConfig, units, dpi }: UseCan
                 const rotCenterX = genericPathObj.x + genericPathObj.width / 2;
                 const rotCenterY = genericPathObj.y + genericPathObj.height / 2;
 
-                let transformStr = `translate(${rotCenterX}, ${rotCenterY}) rotate(${obj.rotation}) skewX(${obj.skewX || 0}) skewY(${obj.skewY || 0}) `;
+                let transformStr = `translate(${rotCenterX}, ${rotCenterY}) rotate(${obj.rotation}) skewX(${obj.skewY || 0}) skewY(${obj.skewY || 0}) `;
                 
                 if (obj.flipX) transformStr += `scale(-1, 1) `;
                 if (obj.flipY) transformStr += `scale(1, -1) `;

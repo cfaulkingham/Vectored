@@ -1,5 +1,4 @@
 
-
 import type { Point, PolygonVertex, ResizeHandle, VectorObject, ShapeType, MirrorMode, PolygonObject, PathObject, LineObject, Layer, GenericPathObject, ShapeObject, FlowGuideObject, TextObject, ImageObject, GroupObject, MeasurementObject } from '../types';
 // FIX: Re-export transformPathData to make it available to other modules.
 import { transformPathData as _transformPathData } from './svg-parser';
@@ -437,15 +436,42 @@ export const getSmoothedPolylinePath = (points: Point[], smoothing: number): str
  * @param width - Bounding width.
  * @param height - Bounding height.
  * @param pointCount - Resolution for curves (e.g., circles).
+ * @param cornerRadius - Corner radius for rectangles.
  * @returns Array of points defining the shape contour.
  */
-const getShapeAsPolygonPoints = (type: ShapeType, width: number, height: number, pointCount: number = 32): Point[] => {
+const getShapeAsPolygonPoints = (type: ShapeType, width: number, height: number, pointCount: number = 32, cornerRadius: number = 0): Point[] => {
     const cx = width / 2;
     const cy = height / 2;
     const points: Point[] = [];
 
     switch (type) {
         case 'rectangle':
+            if (cornerRadius > 0) {
+                const r = Math.min(cornerRadius, width / 2, height / 2);
+                const stepsPerCorner = Math.max(2, Math.floor(pointCount / 4));
+                
+                // Top Right
+                for (let i = 0; i <= stepsPerCorner; i++) {
+                    const angle = -Math.PI / 2 + (i / stepsPerCorner) * (Math.PI / 2);
+                    points.push([width - r + r * Math.cos(angle), r + r * Math.sin(angle)]);
+                }
+                // Bottom Right
+                for (let i = 0; i <= stepsPerCorner; i++) {
+                    const angle = 0 + (i / stepsPerCorner) * (Math.PI / 2);
+                    points.push([width - r + r * Math.cos(angle), height - r + r * Math.sin(angle)]);
+                }
+                // Bottom Left
+                for (let i = 0; i <= stepsPerCorner; i++) {
+                    const angle = Math.PI / 2 + (i / stepsPerCorner) * (Math.PI / 2);
+                    points.push([r + r * Math.cos(angle), height - r + r * Math.sin(angle)]);
+                }
+                // Top Left
+                for (let i = 0; i <= stepsPerCorner; i++) {
+                    const angle = Math.PI + (i / stepsPerCorner) * (Math.PI / 2);
+                    points.push([r + r * Math.cos(angle), r + r * Math.sin(angle)]);
+                }
+                return points;
+            }
             return [[0, 0], [width, 0], [width, height], [0, height]];
         case 'ellipse': {
             const rx = width / 2;
@@ -574,15 +600,21 @@ const getShapeAsPolygonPoints = (type: ShapeType, width: number, height: number,
  * @param type - The type of shape (rectangle, ellipse, etc.).
  * @param width - The width of the shape.
  * @param height - The height of the shape.
+ * @param cornerRadius - Corner radius for rectangles.
  * @returns The SVG 'd' attribute string.
  */
-export const getShapePath = (type: ShapeType, width: number, height: number): string => {
+export const getShapePath = (type: ShapeType, width: number, height: number, cornerRadius: number = 0): string => {
   const cx = width / 2;
   const cy = height / 2;
   let path = '';
   switch (type) {
     case 'rectangle': {
-        path = `M 0 0 L ${width} 0 L ${width} ${height} L 0 ${height} Z`;
+        if (cornerRadius > 0) {
+            const r = Math.min(cornerRadius, width / 2, height / 2);
+            path = `M ${r} 0 h ${width - 2 * r} a ${r} ${r} 0 0 1 ${r} ${r} v ${height - 2 * r} a ${r} ${r} 0 0 1 -${r} ${r} h ${-(width - 2 * r)} a ${r} ${r} 0 0 1 -${r} -${r} v ${-(height - 2 * r)} a ${r} ${r} 0 0 1 ${r} -${r} Z`;
+        } else {
+            path = `M 0 0 L ${width} 0 L ${width} ${height} L 0 ${height} Z`;
+        }
         break;
     }
     case 'ellipse': {
@@ -792,7 +824,7 @@ export const getObjectAsPolygon = (obj: VectorObject, pointCount: number = 64): 
     if (obj.type === 'polygon') {
         localPoints = obj.points.map(p => p.anchor);
     } else if (obj.type === 'shape') {
-        const shapePoints = getShapeAsPolygonPoints(obj.shapeType, obj.width, obj.height, pointCount);
+        const shapePoints = getShapeAsPolygonPoints(obj.shapeType, obj.width, obj.height, pointCount, obj.cornerRadius);
         if (shapePoints) {
             localPoints = shapePoints.map(p => [p[0] + obj.x, p[1] + obj.y]);
         }
@@ -1117,7 +1149,7 @@ export function getSVGPathFromObject(object: VectorObject): string | null {
 
             } else {
                 // For polygons (rect, star, etc), use the linear approximation logic
-                const shapePoints = getShapeAsPolygonPoints(object.shapeType, object.width, object.height, 64);
+                const shapePoints = getShapeAsPolygonPoints(object.shapeType, object.width, object.height, 64, object.cornerRadius);
                 if (!shapePoints) return null;
                 
                 const translatedPoints = shapePoints.map(p => [p[0] + object.x, p[1] + object.y] as Point);

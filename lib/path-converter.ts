@@ -82,7 +82,7 @@ export function convertObjectToPolygon(object: VectorObject): PolygonObject[] | 
             if (shape.shapeType === 'ellipse') {
                 d = getEllipseAsBeziers(shape.width, shape.height);
             } else {
-                d = getShapePath(shape.shapeType, shape.width, shape.height);
+                d = getShapePath(shape.shapeType, shape.width, shape.height, shape.cornerRadius);
             }
             
             // Build transform matrix to map local shape definition to world space
