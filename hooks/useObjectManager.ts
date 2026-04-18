@@ -82,6 +82,11 @@ export const useObjectManager = ({
     }, [layers, selectedObjectInfo]);
 
     const activeLayer = layers.find(l => l.id === activeLayerId);
+    
+    const selectionBounds = useMemo(() => {
+        if (selectedObjects.length === 0) return null;
+        return calculateGroupBounds(selectedObjects);
+    }, [selectedObjects]);
 
     const canGroup = selectedObjects.length > 1;
     const canUngroup = selectedObjects.some(o => o.type === 'group' || o.type === 'path-group');
@@ -862,6 +867,7 @@ export const useObjectManager = ({
         canUngroup,
         canConvertToPath,
         isAttachToPathEnabled,
+        selectionBounds,
         uniqueFills,
         handleConvertObjectToPath,
         handleGroup,

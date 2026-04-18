@@ -2,7 +2,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { 
     ExportIcon, ImportIcon, PrintIcon, SettingsIcon, HelpIcon, SnapIcon, LayoutIcon,
-    AlignLeftIcon, AlignCenterHIcon, AlignRightIcon, AlignTopIcon, AlignCenterVIcon, AlignBottomIcon, NestIcon
+    AlignLeftIcon, AlignCenterHIcon, AlignRightIcon, AlignTopIcon, AlignCenterVIcon, AlignBottomIcon, NestIcon,
+    NewFileIcon, LoadIcon, SaveIcon
 } from './controls/Icons';
 
 // Minimal icons for zoom
@@ -193,195 +194,196 @@ const TopBar: React.FC = () => {
     );
 
     return (
-        <header className="flex-shrink-0 h-14 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4 z-20 select-none relative shadow-md">
+        <header className="flex-shrink-0 h-14 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4 z-[60] select-none relative shadow-xl glass">
             
-            {/* Left: Branding & File Actions */}
-            <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2.5 text-slate-200 cursor-default">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            {/* Left: Branding & Project Name */}
+            <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2.5 text-slate-200 cursor-default group">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform">
+                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                         </svg>
                     </div>
-                    <span className="font-bold text-base tracking-tight">Vectored</span>
                 </div>
 
-                <div className="h-5 w-px bg-slate-800 mx-2 hidden md:block"></div>
-
-                <div className={`${groupClass} hidden md:flex`}>
-                    <button onClick={handleNewProject} className={buttonClass} title="New Project">
-                        <span>New</span>
-                    </button>
-                    <button onClick={() => loadInputRef.current?.click()} className={buttonClass} title="Open Project">
-                        <span>Open</span>
-                    </button>
-                    <button onClick={handleSaveProjectFile} className={buttonClass} title="Save Project">
-                        <span>Save</span>
-                    </button>
-                    <div className={separatorClass}></div>
-                    <button onClick={() => importSvgRef.current?.click()} className={buttonClass} title="Import SVG">
-                        <ImportIcon className="w-3.5 h-3.5 mr-1.5" />
-                        <span>Import</span>
-                    </button>
-                    <button onClick={() => setIsExportModalOpen(true)} className={buttonClass} title="Export Project">
-                        <ImportIcon className="w-3.5 h-3.5 mr-1.5 rotate-180" />
-                        <span>Export</span>
-                    </button>
+                <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] leading-none mb-1">Vectored</span>
+                    <input 
+                        type="text" 
+                        defaultValue="Untitled Project" 
+                        className="bg-transparent border-none outline-none text-slate-200 font-semibold text-xs py-0 h-auto focus:text-cyan-400 transition-colors w-40 truncate"
+                    />
                 </div>
-                
-                <input type="file" accept=".json" className="hidden" ref={loadInputRef} onChange={handleFileSelectedForLoad} />
-                <input type="file" accept=".svg,image/svg+xml" className="hidden" ref={importSvgRef} onChange={onImportSVG} />
             </div>
 
-            {/* Right: View & Utilities */}
-            <div className="flex items-center gap-3">
-                
-                {/* Viewport Control Group (Zoom, Fit, Snap, Layout, Canvas Settings) */}
-                <div className={groupClass}>
+            {/* Center: Primary Tools & Actions */}
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+                <div className={`${groupClass} bg-slate-900/50 backdrop-blur-sm`}>
+                    <button onClick={handleNewProject} className={iconButtonClass} title="New Project (Ctrl+N)">
+                        <NewFileIcon />
+                    </button>
+                    <button onClick={() => loadInputRef.current?.click()} className={iconButtonClass} title="Open Project (Ctrl+O)">
+                        <LoadIcon />
+                    </button>
+                    <button onClick={handleSaveProjectFile} className={iconButtonClass} title="Save Project (Ctrl+S)">
+                        <SaveIcon />
+                    </button>
+                    
+                    <div className={separatorClass}></div>
+                    
+                    <button onClick={() => importSvgRef.current?.click()} className={iconButtonClass} title="Import SVG (Ctrl+I)">
+                        <ImportIcon className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setIsExportModalOpen(true)} className={iconButtonClass} title="Export Project (Ctrl+E)">
+                        <ExportIcon className="w-4 h-4" />
+                    </button>
+                </div>
+
+                <div className={`${groupClass} bg-slate-900/50 backdrop-blur-sm`}>
+                    <button onClick={handleFitToScreen} className={iconButtonClass} title="Fit to Screen">
+                        <FitScreenIcon />
+                    </button>
                     <button onClick={handleZoomOut} className={iconButtonClass} title="Zoom Out">
                         <ZoomOutIcon />
                     </button>
-                    <button onClick={handleReset100} className="px-2 py-1 text-xs font-mono text-slate-400 hover:text-slate-200 min-w-[3.5rem] text-center" title="Reset to 100%">
+                    <button onClick={handleReset100} className="px-3 py-1 text-xs font-mono text-slate-400 hover:text-cyan-400 min-w-[3.5rem] text-center transition-colors" title="Reset to 100%">
                         {Math.round(viewState.zoom * 100)}%
                     </button>
                     <button onClick={handleZoomIn} className={iconButtonClass} title="Zoom In">
                         <ZoomInIcon />
                     </button>
-                    
-                    <div className={separatorClass}></div>
-                    
-                    <button onClick={handleFitToScreen} className={iconButtonClass} title="Fit to Screen">
-                        <FitScreenIcon />
-                    </button>
-
-                    <button onClick={handleFitCanvasToView} className={iconButtonClass} title="Fit Canvas to View">
-                        <FitCanvasIcon />
-                    </button>
-
-                    <div className={separatorClass}></div>
-
-                    {/* Layout Menu (Alignment & Nesting) */}
-                    <div className="relative">
-                        <button 
-                            ref={layoutButtonRef}
-                            onClick={() => setIsLayoutMenuOpen(!isLayoutMenuOpen)}
-                            className={`${iconButtonClass} ${isLayoutMenuOpen ? 'bg-slate-800 text-slate-200' : ''}`}
-                            title="Canvas Layout & Nesting"
-                        >
-                            <LayoutIcon className="w-4 h-4" />
-                        </button>
-                        {isLayoutMenuOpen && (
-                            <div ref={layoutMenuRef} className="absolute top-full right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 z-50 flex flex-col gap-3">
-                                <div>
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Canvas Alignment</h3>
-                                    <div className="grid grid-cols-6 gap-1">
-                                        <LayoutMenuButton onClick={() => handleAlignToCanvas('align-left')} title="Align Left" disabled={selectedObjects.length === 0}><AlignLeftIcon /></LayoutMenuButton>
-                                        <LayoutMenuButton onClick={() => handleAlignToCanvas('align-center-h')} title="Align Center Horizontal" disabled={selectedObjects.length === 0}><AlignCenterHIcon /></LayoutMenuButton>
-                                        <LayoutMenuButton onClick={() => handleAlignToCanvas('align-right')} title="Align Right" disabled={selectedObjects.length === 0}><AlignRightIcon /></LayoutMenuButton>
-                                        <LayoutMenuButton onClick={() => handleAlignToCanvas('align-top')} title="Align Top" disabled={selectedObjects.length === 0}><AlignTopIcon /></LayoutMenuButton>
-                                        <LayoutMenuButton onClick={() => handleAlignToCanvas('align-center-v')} title="Align Center Vertical" disabled={selectedObjects.length === 0}><AlignCenterVIcon /></LayoutMenuButton>
-                                        <LayoutMenuButton onClick={() => handleAlignToCanvas('align-bottom')} title="Align Bottom" disabled={selectedObjects.length === 0}><AlignBottomIcon /></LayoutMenuButton>
-                                    </div>
-                                </div>
-                                
-                                <div className="h-px bg-slate-700"></div>
-
-                                <div>
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Optimization</h3>
-                                    <button 
-                                        onClick={() => setIsNestingModalOpen(true)} 
-                                        disabled={!activeLayerHasObjects}
-                                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white rounded-md text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <NestIcon className="w-4 h-4 text-cyan-400" />
-                                        <span>Auto-Nest Objects</span>
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Snap Menu */}
-                    <div className="relative">
-                        <button 
-                            ref={snapButtonRef}
-                            onClick={() => setIsSnapMenuOpen(!isSnapMenuOpen)}
-                            className={`${iconButtonClass} ${isSnapMenuOpen ? 'bg-slate-800 text-slate-200' : ''}`}
-                            title="Snapping Options"
-                        >
-                            <SnapIcon className="w-4 h-4" />
-                        </button>
-                        {isSnapMenuOpen && (
-                            <div ref={snapMenuRef} className="absolute top-full right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 z-50 flex flex-col gap-3">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Snapping</h3>
-                                
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm text-slate-300">Smart Guides</label>
-                                    <button 
-                                        onClick={() => setSnapSettings({ ...snapSettings, smart: !snapSettings.smart })}
-                                        className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors ${snapSettings.smart ? 'bg-cyan-600' : 'bg-slate-600'}`}
-                                    >
-                                        <span className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${snapSettings.smart ? 'translate-x-4' : 'translate-x-1'}`} />
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm text-slate-300">Snap to Grid</label>
-                                    <button 
-                                        onClick={() => setSnapSettings({ ...snapSettings, grid: !snapSettings.grid })}
-                                        className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors ${snapSettings.grid ? 'bg-cyan-600' : 'bg-slate-600'}`}
-                                    >
-                                        <span className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${snapSettings.grid ? 'translate-x-4' : 'translate-x-1'}`} />
-                                    </button>
-                                </div>
-
-                                {snapSettings.grid && (
-                                    <div className="flex items-center justify-between pt-1">
-                                        <label className="text-xs text-slate-400">Grid Size ({units})</label>
-                                        <input 
-                                            type="number" 
-                                            min="0.1" 
-                                            step={units === 'px' ? 1 : 0.1}
-                                            value={
-                                                (units === 'mm' 
-                                                    ? (snapSettings.gridSize * 25.4 / dpi) 
-                                                    : units === 'in' 
-                                                        ? (snapSettings.gridSize / dpi) 
-                                                        : snapSettings.gridSize
-                                                ).toFixed(units === 'px' ? 0 : 2)
-                                            }
-                                            onChange={(e) => {
-                                                const val = parseFloat(e.target.value);
-                                                if(!isNaN(val) && val > 0) {
-                                                    let pxVal = val;
-                                                    if (units === 'mm') pxVal = (val * dpi) / 25.4;
-                                                    else if (units === 'in') pxVal = val * dpi;
-                                                    setSnapSettings({ ...snapSettings, gridSize: pxVal });
-                                                }
-                                            }}
-                                            className="w-16 bg-slate-700 text-white text-xs rounded p-1 text-right focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    
-                </div>
-                <div className={groupClass}>
-                <button onClick={() => setIsCanvasSettingsModalOpen(true)} className={buttonClass} title="Canvas Settings">
-                        <SettingsIcon className="w-3.5 h-3.5" />
-                    </button>
-                    <div className={separatorClass}></div>
-                    <button onClick={handlePrint} className={iconButtonClass} title="Print">
-                        <PrintIcon className="w-4 h-4" />
-                    </button>
-                    <div className={separatorClass}></div>
-                    <button onClick={() => setIsHelpModalOpen(true)} className={iconButtonClass} title="Help">
-                        <HelpIcon className="w-4 h-4" />
-                    </button>
                 </div>
             </div>
+
+            {/* Right: Workspace Utilities */}
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 p-1 bg-slate-900/50 rounded-lg border border-slate-800">
+                    <button 
+                        ref={snapButtonRef}
+                        onClick={() => setIsSnapMenuOpen(!isSnapMenuOpen)}
+                        className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${isSnapMenuOpen ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}
+                    >
+                        <SnapIcon className="w-3.5 h-3.5" />
+                        Snap
+                    </button>
+                    
+                    <button 
+                        ref={layoutButtonRef}
+                        onClick={() => setIsLayoutMenuOpen(!isLayoutMenuOpen)}
+                        className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${isLayoutMenuOpen ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'}`}
+                    >
+                        <LayoutIcon className="w-3.5 h-3.5" />
+                        Auto-Layout
+                    </button>
+                </div>
+
+                <button 
+                    onClick={() => setIsCanvasSettingsModalOpen(true)}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-900 border border-slate-800 text-slate-500 hover:text-cyan-400 hover:border-cyan-500/50 transition-all"
+                    title="Document Settings"
+                >
+                    <SettingsIcon />
+                </button>
+
+                <button 
+                    onClick={() => setIsHelpModalOpen(true)}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-900 border border-slate-800 text-slate-500 hover:text-cyan-400 hover:border-cyan-500/50 transition-all"
+                    title="Keyboard Shortcuts & Help"
+                >
+                    <HelpIcon />
+                </button>
+
+                {/* Hidden Inputs */}
+                <input type="file" accept=".json" className="hidden" ref={loadInputRef} onChange={handleFileSelectedForLoad} />
+                <input type="file" accept=".svg,image/svg+xml" className="hidden" ref={importSvgRef} onChange={onImportSVG} />
+            </div>
+
+            {/* Snap Menu Popover */}
+            {isSnapMenuOpen && (
+                <div ref={snapMenuRef} className="absolute top-[52px] right-24 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl p-3 z-50 flex flex-col gap-3 animate-fade-in">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Snapping</h3>
+                    
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm text-slate-300 font-medium">Smart Guides</label>
+                        <button 
+                            onClick={() => setSnapSettings({ ...snapSettings, smart: !snapSettings.smart })}
+                            className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors ${snapSettings.smart ? 'bg-indigo-500' : 'bg-slate-600'}`}
+                        >
+                            <span className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${snapSettings.smart ? 'translate-x-4' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm text-slate-300 font-medium">Snap to Grid</label>
+                        <button 
+                            onClick={() => setSnapSettings({ ...snapSettings, grid: !snapSettings.grid })}
+                            className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors ${snapSettings.grid ? 'bg-indigo-500' : 'bg-slate-600'}`}
+                        >
+                            <span className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${snapSettings.grid ? 'translate-x-4' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+
+                    {snapSettings.grid && (
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-700 mt-1 pb-1">
+                            <label className="text-xs text-slate-400 font-mono">Grid Size ({units})</label>
+                            <input 
+                                type="number" 
+                                min="0.1" 
+                                step={units === 'px' ? 1 : 0.1}
+                                value={
+                                    (units === 'mm' 
+                                        ? (snapSettings.gridSize * 25.4 / dpi) 
+                                        : units === 'in' 
+                                            ? (snapSettings.gridSize / dpi) 
+                                            : snapSettings.gridSize
+                                    ).toFixed(units === 'px' ? 0 : 2)
+                                }
+                                onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    if(!isNaN(val) && val > 0) {
+                                        let pxVal = val;
+                                        if (units === 'mm') pxVal = (val * dpi) / 25.4;
+                                        else if (units === 'in') pxVal = val * dpi;
+                                        setSnapSettings({ ...snapSettings, gridSize: pxVal });
+                                    }
+                                }}
+                                className="w-16 bg-slate-700 text-white text-xs rounded p-1 text-right focus:ring-1 focus:ring-cyan-500 outline-none"
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Layout Menu Popover */}
+            {isLayoutMenuOpen && (
+                <div ref={layoutMenuRef} className="absolute top-[52px] right-4 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl p-4 z-50 flex flex-col gap-4 animate-fade-in">
+                    <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Align Selection to Canvas</h3>
+                        <div className="grid grid-cols-3 gap-2">
+                             <button onClick={() => handleAlignToCanvas('align-left')} className={iconButtonClass} title="Align Left"><AlignLeftIcon /></button>
+                             <button onClick={() => handleAlignToCanvas('align-center-h')} className={iconButtonClass} title="Align Center Horizontal"><AlignCenterHIcon /></button>
+                             <button onClick={() => handleAlignToCanvas('align-right')} className={iconButtonClass} title="Align Right"><AlignRightIcon /></button>
+                             <button onClick={() => handleAlignToCanvas('align-top')} className={iconButtonClass} title="Align Top"><AlignTopIcon /></button>
+                             <button onClick={() => handleAlignToCanvas('align-center-v')} className={iconButtonClass} title="Align Center Vertical"><AlignCenterVIcon /></button>
+                             <button onClick={() => handleAlignToCanvas('align-bottom')} className={iconButtonClass} title="Align Bottom"><AlignBottomIcon /></button>
+                        </div>
+                    </div>
+                    
+                    <div className="h-px bg-slate-700"></div>
+
+                    <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Production Optimization</h3>
+                        <button 
+                            onClick={() => setIsNestingModalOpen(true)} 
+                            disabled={!activeLayerHasObjects}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-xs font-bold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:shadow-none"
+                        >
+                            <NestIcon className="w-4 h-4" />
+                            <span>Auto-Nest Objects</span>
+                        </button>
+                    </div>
+                </div>
+            )}
         </header>
     );
 };

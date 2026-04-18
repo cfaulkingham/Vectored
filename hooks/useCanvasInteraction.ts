@@ -55,6 +55,8 @@ interface UseCanvasInteractionProps {
     snapSettings: SnapSettings;
     /** Setter for active alignment guides */
     setActiveGuides: React.Dispatch<React.SetStateAction<ActiveGuide[]>>;
+    /** Setter for current cursor position */
+    setCursorPos: React.Dispatch<React.SetStateAction<Point | null>>;
     /** Function to finalize the current history entry */
     commitHistory: () => void;
 }
@@ -90,6 +92,7 @@ export const useCanvasInteraction = ({
     handleInitiateImport,
     snapSettings,
     setActiveGuides,
+    setCursorPos,
     commitHistory
 }: UseCanvasInteractionProps) => {
 
@@ -729,11 +732,12 @@ export const useCanvasInteraction = ({
      * Updates temporary objects or guides during continuous interactions.
      */
     const handleCanvasMouseMove = useCallback((point: Point | null, shiftKey: boolean) => {
-    if (!point) return;
+        setCursorPos(point);
+        if (!point) return;
 
     // FIX: Handle dragging new or existing guides
     if (interaction.mode === 'dragging_new_guide' || interaction.mode === 'moving_guide') {
-        setInteraction(produce(draft => {
+        setInteraction(produce((draft: InteractionState) => {
             if (draft.mode === 'dragging_new_guide' || draft.mode === 'moving_guide') {
                 draft.guide.position = draft.guide.orientation === 'horizontal' ? point[1] : point[0];
             }
@@ -742,7 +746,7 @@ export const useCanvasInteraction = ({
     }
 
     if (interaction.mode === 'measuring') {
-        setInteraction(produce(draft => {
+        setInteraction(produce((draft: InteractionState) => {
             if (draft.mode === 'measuring') {
                 draft.currentPoint = point;
             }
@@ -751,7 +755,7 @@ export const useCanvasInteraction = ({
     }
 
     if (interaction.mode === 'marquee_selection') {
-        setInteraction(produce(draft => {
+        setInteraction(produce((draft: InteractionState) => {
             if (draft.mode === 'marquee_selection') {
                 draft.currentPoint = point;
             }
@@ -760,7 +764,7 @@ export const useCanvasInteraction = ({
     }
 
     if (interaction.mode === 'drawing_pattern_brush') {
-        setInteraction(produce(draft => {
+        setInteraction(produce((draft: InteractionState) => {
             if (draft.mode === 'drawing_pattern_brush') {
                 draft.points.push(point);
             }
@@ -769,7 +773,7 @@ export const useCanvasInteraction = ({
     }
 
     if (interaction.mode === 'drawing_path') {
-        setInteraction(produce(draft => {
+        setInteraction(produce((draft: InteractionState) => {
             if (draft.mode === 'drawing_path') {
                 draft.object.points.push(point);
             }
@@ -778,7 +782,7 @@ export const useCanvasInteraction = ({
     }
 
     if (interaction.mode === 'drawing_line') {
-        setInteraction(produce(draft => {
+        setInteraction(produce((draft: InteractionState) => {
             if (draft.mode === 'drawing_line') {
                 draft.object.x2 = point[0];
                 draft.object.y2 = point[1];
@@ -792,7 +796,7 @@ export const useCanvasInteraction = ({
     }
 
     if (interaction.mode === 'drawing_measurement') {
-        setInteraction(produce(draft => {
+        setInteraction(produce((draft: InteractionState) => {
             if (draft.mode === 'drawing_measurement') {
                 draft.object.x2 = point[0];
                 draft.object.y2 = point[1];
@@ -810,7 +814,7 @@ export const useCanvasInteraction = ({
     }
 
     if (interaction.mode === 'drawing_object') {
-        setInteraction(produce(draft => {
+        setInteraction(produce((draft: InteractionState) => {
             if (draft.mode === 'drawing_object') {
                 const { startPoint } = draft;
                 let currentX = point[0];

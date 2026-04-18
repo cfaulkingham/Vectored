@@ -49,6 +49,8 @@ interface EditorContextValue {
     snapSettings: SnapSettings;
     setSnapSettings: React.Dispatch<React.SetStateAction<SnapSettings>>;
     activeGuides: ActiveGuide[];
+    cursorPos: Point | null;
+    setCursorPos: React.Dispatch<React.SetStateAction<Point | null>>;
 
     // History / App State
     appState: AppState;
@@ -90,6 +92,7 @@ interface EditorContextValue {
     canUngroup: boolean;
     canConvertToPath: boolean;
     isAttachToPathEnabled: boolean;
+    selectionBounds: { x: number; y: number; width: number; height: number } | null;
     handleConvertObjectToPath: () => void;
     handleGroup: () => void;
     handleUngroup: () => void;
@@ -161,6 +164,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         handleToolChange,
         snapSettings, setSnapSettings,
         activeGuides, setActiveGuides,
+        cursorPos, setCursorPos,
     } = useEditorState();
 
     const { state: appState, setState: setAppState, undo, redo, canUndo, canRedo, reset, commit } = useHistoryState<AppState>(createInitialState());
@@ -199,6 +203,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         canUngroup,
         canConvertToPath,
         isAttachToPathEnabled,
+        selectionBounds,
         uniqueFills,
         handleConvertObjectToPath,
         handleGroup,
@@ -285,6 +290,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         handleUpdateSelectedObjects, updateLayerPattern, loadGoogleFonts,
         toolSettings, handleInitiateImport,
         snapSettings, setActiveGuides,
+        setCursorPos,
         commitHistory: commit
     });
 
@@ -337,6 +343,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         snapSettings, setSnapSettings,
         activeGuides,
+        cursorPos, setCursorPos,
 
         appState, setAppState, undo, redo, canUndo, canRedo, reset, commitHistory: commit,
 
@@ -349,7 +356,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         handleAddLayer, handleDuplicateLayer, handleDeleteLayer, handleToggleVisibility, handleRenameLayer,
         handleLayerColorChange, handleLayerBlendModeChange, handleSelectLayer, handleMoveLayer, handleToggleLockLayer,
 
-        canGroup, canUngroup, canConvertToPath, isAttachToPathEnabled,
+        canGroup, canUngroup, canConvertToPath, isAttachToPathEnabled, selectionBounds,
         handleConvertObjectToPath, handleGroup, handleUngroup, handleUpdateSelectedObjects, handleDeleteSelectedObjects,
         handleCopySelectedObject, handlePasteObject, handleMoveSelectedObjects, handleReorderObject, handleAlignObjects,
         handleAlignToCanvas, handleSelectAll, handleFlipObject, handleSelectObjectsByFill, handleAttachToPath, handleApplyPathGroup,

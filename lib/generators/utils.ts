@@ -1,5 +1,5 @@
 
-import type { LayerSettings, Point, VectorObject } from '../types';
+import type { LayerSettings, Point, VectorObject } from '../../types';
 
 /**
  * Creates a seeded pseudo-random number generator using the Mulberry32 algorithm.

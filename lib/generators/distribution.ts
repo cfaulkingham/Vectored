@@ -1,5 +1,5 @@
 
-import type { Point, PrimitivePatternData } from '../types';
+import type { Point, PrimitivePatternData } from '../../types';
 import { rotatePoint, getSmoothedPolylinePath } from '../geometry';
 import type { GeneratorContext } from './utils';
 

@@ -1,5 +1,6 @@
 {
   "name": "Vectored",
   "description": "Vectored, is a vector design tool optimized for Makers. Create complex patterns, flat-pack boxes, and gears for laser cutting, CNC, and plotting. Features DXF export and specialized fabrication generators.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

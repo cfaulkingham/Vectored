@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef } from 'react';
-import type { InteractionState, Units, VectorObjectType, ShapeType, MirrorMode, VectorObject, TextObject, SnapSettings, ActiveGuide } from '../types';
+import type { InteractionState, Units, VectorObjectType, ShapeType, MirrorMode, VectorObject, TextObject, SnapSettings, ActiveGuide, Point } from '../types';
 
 /**
  * Custom hook to manage transient editor state.
@@ -44,6 +44,7 @@ export const useEditorState = () => {
       threshold: 5
   });
   const [activeGuides, setActiveGuides] = useState<ActiveGuide[]>([]);
+  const [cursorPos, setCursorPos] = useState<Point | null>(null);
 
   const handleUpdateToolSettings = useCallback((props: Partial<VectorObject>) => {
       setToolSettings(prev => ({ ...prev, ...props } as Partial<VectorObject & TextObject>));
@@ -104,5 +105,6 @@ export const useEditorState = () => {
     handleToolChange,
     snapSettings, setSnapSettings,
     activeGuides, setActiveGuides,
+    cursorPos, setCursorPos,
   };
 };

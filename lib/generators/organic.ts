@@ -1,5 +1,5 @@
 
-import type { Point, PrimitivePatternData, FlowGuideObject } from '../types';
+import type { Point, PrimitivePatternData, FlowGuideObject } from '../../types';
 import { getSmoothedPolylinePath, distToSegmentSq } from '../geometry';
 import { SimplexNoise, gaussianBlur } from './utils';
 import type { GeneratorContext } from './utils';

@@ -6,6 +6,9 @@ import TopBar from './TopBar';
 import RightSidebar from './RightSidebar';
 import VerticalToolbar from './VerticalToolbar';
 import { ModalManager } from './ModalManager';
+import { StatusBar } from './StatusBar';
+import { CommandBar } from './CommandBar';
+import { CanvasQuickActions } from './CanvasQuickActions';
 import { useEditor } from '../context/EditorContext';
 
 /**
@@ -23,7 +26,9 @@ export const EditorLayout: React.FC = () => {
         activeLayer, activeLayerId, selectedObjects,
         interaction, editingMode, activeTool, viewState, setViewState,
         mirrorMode, mirrorGap,
-        patternPreviewData
+        patternPreviewData,
+        units,
+        dpi
     } = useEditor();
 
     const RULER_BREADTH = 30;
@@ -74,7 +79,7 @@ export const EditorLayout: React.FC = () => {
     }, [canvasConfig, viewportSize.width, viewportSize.height, setViewState]);
 
     return (
-        <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans antialiased overflow-hidden">
+        <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans antialiased overflow-hidden selection:bg-cyan-500/30">
             <TopBar />
             <main className="flex flex-grow overflow-hidden relative">
                 <VerticalToolbar />
@@ -100,8 +105,8 @@ export const EditorLayout: React.FC = () => {
                             activeLayerClipPolygonPoints={activeLayer?.clipPolygonPoints || []}
                             isLayerClipPolygonClosed={activeLayer?.isClipPolygonClosed || false}
                             activeLayerId={activeLayerId}
-                            units={useEditor().units}
-                            dpi={useEditor().dpi}
+                            units={units}
+                            dpi={dpi}
                             selectedObjects={selectedObjects}
                             activeTool={activeTool}
                             viewState={viewState}
@@ -112,10 +117,13 @@ export const EditorLayout: React.FC = () => {
                             patternPreviewObjects={selectedObjects}
                         />
                     )}
+                    <CanvasQuickActions />
                 </div>
                 <RightSidebar />
             </main>
+            <StatusBar />
             <ModalManager />
+            <CommandBar />
         </div>
     );
 };

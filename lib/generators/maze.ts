@@ -1,5 +1,5 @@
 
-import type { PrimitivePatternData } from '../types';
+import type { PrimitivePatternData } from '../../types';
 import type { GeneratorContext } from './utils';
 
 /**

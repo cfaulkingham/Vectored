@@ -1,5 +1,5 @@
 
-import type { Point, LayerSettings, VectorObject, PolygonVertex, ShapeObject, TextObject, LineObject } from './types';
+import type { Point, LayerSettings, VectorObject, PolygonVertex, ShapeObject, TextObject, LineObject } from '../types';
 import { calculatePolygonBounds, getObjectVisualBounds } from './geometry';
 import { measureText } from './text-utils';
 

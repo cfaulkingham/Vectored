@@ -1,5 +1,5 @@
 
-import type { Point, PrimitivePatternData } from '../types';
+import type { Point, PrimitivePatternData } from '../../types';
 import { getSmoothedPolylinePath } from '../geometry';
 import { mulberry32, type GeneratorContext } from './utils';
 
