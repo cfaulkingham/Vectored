@@ -482,8 +482,11 @@ export const useObjectManager = ({
     const handleSelectAll = useCallback(() => {
         if (!activeLayerId) return;
         const layer = layers.find(l => l.id === activeLayerId);
-        if (layer) {
-            setSelectedObjectInfo({ layerId: activeLayerId, objectIds: layer.objects.map(o => o.id) });
+        if (layer && !layer.isLocked && layer.visible !== false) {
+            setSelectedObjectInfo({ 
+                layerId: activeLayerId, 
+                objectIds: layer.objects.filter(o => o.visible !== false && o.isLocked !== true).map(o => o.id) 
+            });
         }
     }, [activeLayerId, layers, setSelectedObjectInfo]);
 

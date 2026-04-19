@@ -98,8 +98,11 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                             </div>
                             <div>
                                 <SectionTitle>Actions</SectionTitle>
+                                <ShortcutRow label="Command Palette" keys={[<Kbd>Ctrl</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>K</Kbd>]} />
                                 <ShortcutRow label="Undo" keys={[<Kbd>Ctrl</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>Z</Kbd>]} />
                                 <ShortcutRow label="Redo" keys={[<Kbd>Ctrl</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>Y</Kbd>]} />
+                                <ShortcutRow label="Group" keys={[<Kbd>Ctrl</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>G</Kbd>]} />
+                                <ShortcutRow label="Ungroup" keys={[<Kbd>Ctrl</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>Shift</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>G</Kbd>]} />
                                 <ShortcutRow label="Copy" keys={[<Kbd>Ctrl</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>C</Kbd>]} />
                                 <ShortcutRow label="Paste" keys={[<Kbd>Ctrl</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>V</Kbd>]} />
                                 <ShortcutRow label="Select All" keys={[<Kbd>Ctrl</Kbd>, <span className="text-slate-500 self-center">+</span>, <Kbd>A</Kbd>]} />
@@ -171,6 +174,9 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                             <div>
                                 <SectionTitle>Interface Overview</SectionTitle>
                                 <p className="text-sm mb-2">
+                                    <strong>Command Palette:</strong> Press <Kbd>Ctrl</Kbd> + <Kbd>K</Kbd> (or <Kbd>Cmd</Kbd> + <Kbd>K</Kbd> on Mac) to open the Command Palette to quickly search for tools, actions, and settings.
+                                </p>
+                                <p className="text-sm mb-2">
                                     <strong>Left Toolbar:</strong> Contains tools for creating objects (Shapes, Lines, Text, Freehand).
                                 </p>
                                 <p className="text-sm mb-2">
@@ -181,6 +187,9 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                                     <li><strong>Properties:</strong> Edit the selected object's dimensions, fill, stroke, and typography.</li>
                                     <li><strong>Alignment:</strong> Tools to align, distribute, and group objects.</li>
                                 </ul>
+                                <p className="text-sm mt-3 mb-2">
+                                    <strong>Bottom Status Bar:</strong> Displays useful contextual information, current selection size, layer name, cursor coordinates, and zoom level.
+                                </p>
                             </div>
 
                             <div>

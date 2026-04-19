@@ -8,7 +8,6 @@ import VerticalToolbar from './VerticalToolbar';
 import { ModalManager } from './ModalManager';
 import { StatusBar } from './StatusBar';
 import { CommandBar } from './CommandBar';
-import { CanvasQuickActions } from './CanvasQuickActions';
 import { useEditor } from '../context/EditorContext';
 
 /**
@@ -117,7 +116,6 @@ export const EditorLayout: React.FC = () => {
                             patternPreviewObjects={selectedObjects}
                         />
                     )}
-                    <CanvasQuickActions />
                 </div>
                 <RightSidebar />
             </main>

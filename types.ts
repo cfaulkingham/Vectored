@@ -184,6 +184,9 @@ export type Gradient = LinearGradient | RadialGradient;
  */
 interface BaseVectorObject {
   id: string;
+  name?: string;
+  visible?: boolean;
+  isLocked?: boolean;
   type: VectorObjectType;
   rotation: number;
   skewX: number;

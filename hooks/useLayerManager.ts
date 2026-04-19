@@ -221,6 +221,29 @@ export const useLayerManager = ({ setAppState, activeLayerId, selectedObjectInfo
         }));
     }, [setAppState]);
 
+    /**
+     * Complete replacement for 'layers' used by drag-and-drop operations.
+     */
+    const handleSetLayers = useCallback((newLayers: Layer[]) => {
+        setAppState(produce((draft: AppState) => {
+            draft.layers = newLayers as typeof draft.layers;
+        }));
+    }, [setAppState]);
+
+    /**
+     * Updates an object property directly (visibility, locking, naming)
+     */
+    const handleUpdateObjectProperty = useCallback((layerId: string, objectId: string, property: string, value: any) => {
+        setAppState(produce((draft: AppState) => {
+            const layer = draft.layers.find(l => l.id === layerId);
+            if (!layer) return;
+            const obj = layer.objects.find(o => o.id === objectId);
+            if (obj) {
+                (obj as any)[property] = value;
+            }
+        }));
+    }, [setAppState]);
+
     return {
         updateLayerPattern,
         handleUpdateActiveLayer,
@@ -236,5 +259,7 @@ export const useLayerManager = ({ setAppState, activeLayerId, selectedObjectInfo
         handleSelectLayer,
         handleMoveLayer,
         handleToggleLockLayer,
+        handleSetLayers,
+        handleUpdateObjectProperty
     };
 };

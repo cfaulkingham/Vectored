@@ -67,6 +67,8 @@ export const useCanvasRenderData = ({ layers, canvasConfig, units, dpi }: UseCan
 
         // Helper function to render a single VectorObject
         const processRenderableObject = (obj: VectorObject, keyOverride?: string): RenderableElement | null => {
+            if (obj.visible === false) return null;
+            
             const isGradient = typeof obj.fill === 'object' && obj.fill !== null;
             let fillProp: string | undefined = undefined;
             const objectKey = keyOverride || `${layer.id}-obj-${obj.id}`;
@@ -132,7 +134,10 @@ export const useCanvasRenderData = ({ layers, canvasConfig, units, dpi }: UseCan
                 opacity: obj.opacity,
                 fillOpacity: obj.fillOpacity,
                 strokeOpacity: obj.strokeOpacity,
-                style: { mixBlendMode: obj.blendMode }
+                style: { 
+                    mixBlendMode: obj.blendMode,
+                    pointerEvents: obj.isLocked ? 'none' : 'auto'
+                }
             };
             
             const cx = obj.x + obj.width / 2;

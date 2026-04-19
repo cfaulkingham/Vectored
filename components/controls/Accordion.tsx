@@ -13,6 +13,8 @@ export const Accordion: React.FC<{ children: ReactNode }> = ({ children }) => {
     // Filter out non-valid elements to prevent errors
     const childArray = React.Children.toArray(children).filter(React.isValidElement);
 
+    const titleDeps = childArray.map(c => (c as ReactElement<{ title?: string }>).props?.title).join('|');
+
     // Memoize the initial state calculation based on child keys/titles
     const getInitialOpenState = useMemo(() => {
         return childArray.reduce((acc, child) => {
@@ -23,7 +25,8 @@ export const Accordion: React.FC<{ children: ReactNode }> = ({ children }) => {
             }
             return acc;
         }, {} as Record<string, boolean>);
-    }, [childArray.length, ...childArray.map(c => (c as ReactElement<{ title?: string }>).props?.title)]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [titleDeps]);
 
     const [openSections, setOpenSections] = useState<Record<string, boolean>>(getInitialOpenState);
 

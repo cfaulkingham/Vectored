@@ -86,6 +86,8 @@ interface EditorContextValue {
     handleSelectLayer: (id: string | null) => void;
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleToggleLockLayer: (id: string) => void;
+    handleSetLayers: (layers: Layer[]) => void;
+    handleUpdateObjectProperty: (layerId: string, objectId: string, property: string, value: any) => void;
 
     // Object Manager
     canGroup: boolean;
@@ -189,6 +191,8 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         handleSelectLayer,
         handleMoveLayer,
         handleToggleLockLayer,
+        handleSetLayers,
+        handleUpdateObjectProperty
     } = useLayerManager({
         setAppState,
         activeLayerId,
@@ -354,7 +358,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         updateLayerPattern, handleUpdateActiveLayer, handleUpdateActiveLayerSettings, handleDensityImageChange,
         handleAddLayer, handleDuplicateLayer, handleDeleteLayer, handleToggleVisibility, handleRenameLayer,
-        handleLayerColorChange, handleLayerBlendModeChange, handleSelectLayer, handleMoveLayer, handleToggleLockLayer,
+        handleLayerColorChange, handleLayerBlendModeChange, handleSelectLayer, handleMoveLayer, handleToggleLockLayer, handleSetLayers, handleUpdateObjectProperty,
 
         canGroup, canUngroup, canConvertToPath, isAttachToPathEnabled, selectionBounds,
         handleConvertObjectToPath, handleGroup, handleUngroup, handleUpdateSelectedObjects, handleDeleteSelectedObjects,

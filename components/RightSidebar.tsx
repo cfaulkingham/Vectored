@@ -42,7 +42,7 @@ const RightSidebar: React.FC = () => {
         appState, activeLayer, activeLayerId, editingMode, setEditingMode, selectedObjects,
         handleUpdateActiveLayer, handleClearClipPath,
         handleDeleteLayer, handleSelectLayer, handleRenameLayer, handleToggleVisibility, handleLayerColorChange, handleLayerBlendModeChange,
-        handleMoveLayer, handleToggleLockLayer, handleAddLayer, handleDuplicateLayer,
+        handleMoveLayer, handleToggleLockLayer, handleAddLayer, handleDuplicateLayer, handleSetLayers, handleUpdateObjectProperty,
         activeTool, handleToolChange,
         handleUpdateSelectedObjects, handleDeleteSelectedObjects, handleCopySelectedObject, handlePasteObject, clipboardObject,
         activeShapeType, setActiveShapeType,
@@ -59,6 +59,7 @@ const RightSidebar: React.FC = () => {
         dpi,
         units,
         projectManager, // Added to access Nesting trigger
+        setSelectedObjectInfo,
     } = editor;
 
 
@@ -119,6 +120,10 @@ const RightSidebar: React.FC = () => {
                     onMoveLayer={handleMoveLayer}
                     onToggleLockLayer={handleToggleLockLayer}
                     editingMode={editingMode}
+                    onSetLayers={handleSetLayers}
+                    onUpdateObjectProperty={handleUpdateObjectProperty}
+                    selectedObjects={selectedObjects}
+                    setSelectedObjects={setSelectedObjectInfo}
                 />
             </AccordionItem>
         );
