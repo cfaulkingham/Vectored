@@ -558,7 +558,7 @@ export interface Guide {
 export interface AppState {
     layers: Layer[];
     activeLayerId: string | null;
-    canvasConfig: { width: number, height: number };
+    canvasConfig: { width: number, height: number, clipToCanvas?: boolean };
     guides: Guide[];
 }
 

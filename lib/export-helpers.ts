@@ -706,10 +706,16 @@ export const generateSVGString = (appState: AppState, units: Units, options: { i
     const contentWrapperStart = `<g${filterAttr}>`;
     
     const filter = options.inverted ? `<filter id="invert"><feColorMatrix in="SourceGraphic" type="matrix" values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0"/></filter>` : '';
-    const contentWrapperEnd = '</g>';
+    let canvasClipPath = '';
+    let contentWrapperEnd = '</g>';
+    
+    if (canvasConfig.clipToCanvas) {
+        canvasClipPath = `<clipPath id="canvas-clip"><rect width="${width}" height="${height}" /></clipPath>`;
+        content = `<g clip-path="url(#canvas-clip)">${content}</g>`;
+    }
 
     return `<svg width="${widthAttr}" height="${heightAttr}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">` +
-        `<defs>${filter}${defs}</defs>` +
+        `<defs>${filter}${canvasClipPath}${defs}</defs>` +
         `<rect width="100%" height="100%" fill="white"/>` +
         contentWrapperStart +
         content +

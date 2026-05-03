@@ -115,7 +115,7 @@ interface EditorContextValue {
 
     // Project Manager
     projectManager: any;
-    handleCanvasConfigChange: (config: { width: number; height: number }) => void;
+    handleCanvasConfigChange: (config: { width: number; height: number, clipToCanvas?: boolean }) => void;
     handleInitiateImport: (file: File, type: 'svg' | 'image', point?: Point) => void;
 
     // Canvas Interaction
@@ -273,7 +273,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateLayerPattern,
     });
 
-    const handleCanvasConfigChange = useCallback((config: { width: number; height: number; }) => {
+    const handleCanvasConfigChange = useCallback((config: { width: number; height: number; clipToCanvas?: boolean }) => {
         setAppState(produce((draft: AppState) => {
             draft.canvasConfig = config;
         }));

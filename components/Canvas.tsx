@@ -13,6 +13,7 @@ interface CanvasProps {
     height: number;
     viewportWidth: number;
     viewportHeight: number;
+    clipToCanvas?: boolean;
     onCanvasMouseDown: (point: Point, hitInfo: HoverInfo | null, altKey: boolean, shiftKey: boolean) => void;
     onRulerMouseDown: (orientation: 'horizontal' | 'vertical', point: Point) => void;
     onCanvasMouseMove: (point: Point | null, shiftKey: boolean) => void;
@@ -263,6 +264,7 @@ const Canvas: React.FC<CanvasProps> = (props) => {
     const {
         width, height, // Document dimensions
         viewportWidth, viewportHeight, // Available screen space
+        clipToCanvas,
         onCanvasMouseDown, onRulerMouseDown, onCanvasMouseMove, onCanvasMouseUp, onCanvasDoubleClick, onUpdateTextContent, onFinishTextEditing, rulerBreadth,
         guides,
         renderData,
@@ -1638,6 +1640,9 @@ const Canvas: React.FC<CanvasProps> = (props) => {
                 style={{ cursor: getCursor(), touchAction: 'none' }}
             >
                 <defs>
+                    <clipPath id="canvas-clip">
+                        <rect x="0" y="0" width={width} height={height} />
+                    </clipPath>
                     {renderData.defs}
                     <pattern id="grid" width={100 * viewState.zoom} height={100 * viewState.zoom} patternUnits="userSpaceOnUse">
                         <path d={`M ${100 * viewState.zoom} 0 L 0 0 0 ${100 * viewState.zoom}`} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
@@ -1684,8 +1689,10 @@ const Canvas: React.FC<CanvasProps> = (props) => {
                         )}
                     </g>
 
-                    {/* Layers */}
-                    {renderData.layers.map((l) => {
+                    {/* Canvas Clustered Content */}
+                    <g clipPath={clipToCanvas ? "url(#canvas-clip)" : undefined}>
+                        {/* Layers */}
+                        {renderData.layers.map((l) => {
                         const { offsetX = 0, offsetY = 0, rotation = 0, scale: layerScale = 1, skewX = 0, skewY = 0 } = l.layer;
                         const pivotX = width / 2;
                         const pivotY = height / 2;
@@ -1807,7 +1814,7 @@ const Canvas: React.FC<CanvasProps> = (props) => {
                             </g>
                         );
                     })()}
-
+                    </g>
                     {staticGuides}
                     {activeSnapGuides}
                     {clipModeAdornments}

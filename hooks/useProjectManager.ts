@@ -139,7 +139,7 @@ export const useProjectManager = ({
     /**
      * Creates a new project with specified dimensions and units.
      */
-    const handleCreateProject = (config: { width: number, height: number }, units: Units) => {
+    const handleCreateProject = (config: { width: number, height: number, clipToCanvas?: boolean }, units: Units) => {
         setUnits(units);
         reset(createInitialState(config));
         setIsNewProjectSettingsOpen(false);

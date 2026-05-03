@@ -7,10 +7,10 @@ interface CanvasSettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     units: Units;
-    onUnitsChange?: (units: Units) => void; // Optional for create mode
-    canvasConfig: { width: number, height: number };
-    onCanvasConfigChange?: (config: { width: number, height: number }) => void; // Optional for create mode
-    onConfirm?: (config: { width: number, height: number }, units: Units) => void; // For create mode
+    onUnitsChange?: (units: Units) => void;
+    canvasConfig: { width: number, height: number, clipToCanvas?: boolean };
+    onCanvasConfigChange?: (config: { width: number, height: number, clipToCanvas?: boolean }) => void;
+    onConfirm?: (config: { width: number, height: number, clipToCanvas?: boolean }, units: Units) => void;
     dpi: number;
     mode?: 'edit' | 'create';
     includeMeasurements?: boolean;
@@ -41,6 +41,7 @@ const CanvasSettingsModal: React.FC<CanvasSettingsModalProps> = ({
 }) => {
     const [localUnits, setLocalUnits] = useState<Units>(initialUnits);
     const [localConfig, setLocalConfig] = useState({ width: '', height: '' });
+    const [localClipToCanvas, setLocalClipToCanvas] = useState(initialConfig.clipToCanvas ?? false);
     
     const convertFromPx = useCallback((px: number, unit: Units) => {
         if (unit === 'mm') return (px * 25.4) / dpi;
@@ -62,6 +63,7 @@ const CanvasSettingsModal: React.FC<CanvasSettingsModalProps> = ({
                 width: convertFromPx(initialConfig.width, initialUnits).toFixed(2),
                 height: convertFromPx(initialConfig.height, initialUnits).toFixed(2),
             });
+            setLocalClipToCanvas(initialConfig.clipToCanvas ?? false);
         }
     }, [isOpen, initialConfig, initialUnits, convertFromPx]);
 
@@ -99,9 +101,9 @@ const CanvasSettingsModal: React.FC<CanvasSettingsModalProps> = ({
             const hPx = convertToPx(h, localUnits);
 
             if (mode === 'create' && onConfirm) {
-                onConfirm({ width: wPx, height: hPx }, localUnits);
+                onConfirm({ width: wPx, height: hPx, clipToCanvas: localClipToCanvas }, localUnits);
             } else if (onCanvasConfigChange && onUnitsChange) {
-                onCanvasConfigChange({ width: wPx, height: hPx });
+                onCanvasConfigChange({ width: wPx, height: hPx, clipToCanvas: localClipToCanvas });
                 onUnitsChange(localUnits);
                 onClose();
             }
@@ -168,14 +170,18 @@ const CanvasSettingsModal: React.FC<CanvasSettingsModalProps> = ({
                             </div>
                         </div>
 
-                        {onIncludeMeasurementsChange && (
-                            <div className="pt-4 border-t border-gray-700">
+                        <div className="pt-4 border-t border-gray-700 space-y-3">
+                            <div className="flex items-center">
+                                <input type="checkbox" id="clip-to-canvas" checked={localClipToCanvas} onChange={(e) => setLocalClipToCanvas(e.target.checked)} className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 rounded focus:ring-cyan-500" />
+                                <label htmlFor="clip-to-canvas" className="ml-2 font-medium text-gray-300 select-none">Clip Content to Artboard</label>
+                            </div>
+                            {onIncludeMeasurementsChange && (
                                 <div className="flex items-center">
                                     <input type="checkbox" id="include-measurements-settings" checked={!!includeMeasurements} onChange={(e) => onIncludeMeasurementsChange(e.target.checked)} className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 rounded focus:ring-cyan-500" />
                                     <label htmlFor="include-measurements-settings" className="ml-2 font-medium text-gray-300 select-none">Include Measurements in Export/Print</label>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </main>
 
                     <footer className="flex justify-end p-4 bg-gray-900/50 border-t border-gray-700 space-x-3 mt-auto">

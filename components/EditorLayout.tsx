@@ -89,6 +89,7 @@ export const EditorLayout: React.FC = () => {
                             height={canvasConfig.height}
                             viewportWidth={viewportSize.width}
                             viewportHeight={viewportSize.height}
+                            clipToCanvas={canvasConfig.clipToCanvas}
                             onCanvasMouseDown={handleCanvasMouseDown}
                             onRulerMouseDown={handleRulerMouseDown}
                             onCanvasMouseMove={handleCanvasMouseMove}

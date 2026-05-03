@@ -170,11 +170,11 @@ export const createNewLayer = (): Layer => ({
  * @param dimensions - Optional initial width and height for the canvas.
  * @returns The initial AppState object ready for use.
  */
-export const createInitialState = (dimensions?: { width: number, height: number }): AppState => {
+export const createInitialState = (dimensions?: { width: number, height: number, clipToCanvas?: boolean }): AppState => {
     const initialLayer = createNewLayer();
     initialLayer.name = "Layer 1";
     // Default to Letter size (8.5 x 11 inches @ 96 DPI) -> 816 x 1056 px
-    const defaults = { width: 816, height: 1056 };
+    const defaults = { width: 816, height: 1056, clipToCanvas: false };
     return {
         layers: [initialLayer],
         activeLayerId: initialLayer.id,
