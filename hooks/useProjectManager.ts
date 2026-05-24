@@ -6,7 +6,7 @@ import { parseSVG } from '../lib/svg-parser';
 import { sanitizeFontFaces } from '../lib/safe-svg-parser';
 import { calculateGenericPathBounds, calculateGroupBounds, getTransformMatrix, applyMirrorToObject, transformPoint, calculatePolygonBounds, calculatePathBounds, transformPathData } from '../lib/geometry';
 import type { AppState, GenericPathObject, ImageObject, InteractionState, TextObject, VectorObject, ParsedTextElement, Units, Point, NestingResult, PolygonObject, PathObject, LineObject, MeasurementObject, GroupObject } from '../types';
-import { generateSVGString, generateDXFString } from '../lib/export-helpers';
+import { generateSVGString, generateDXFString, inlineFontsInSVG } from '../lib/export-helpers';
 import { jsPDF } from 'jspdf';
 import { measureText } from '../lib/text-utils';
 import { OPTION_PRESETS } from '../imagetracer/presets';
@@ -659,9 +659,14 @@ export const useProjectManager = ({
     /**
      * Exports the project as an SVG file.
      */
-    const handleExportSVG = useCallback(() => {
-        const svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
-        const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    const handleExportSVG = useCallback(async () => {
+        let svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
+        try {
+            svgString = await inlineFontsInSVG(svgString, appState);
+        } catch (e) {
+            console.error('Failed to inline fonts for SVG export', e);
+        }
+        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
         const href = URL.createObjectURL(blob);
         triggerDownload(href, `${filename}.svg`);
         URL.revokeObjectURL(href);
@@ -684,8 +689,13 @@ export const useProjectManager = ({
      * Exports the project as a PNG image.
      * Uses a temporary canvas to render the SVG string.
      */
-    const handleExportPNG = useCallback(() => {
-        const svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
+    const handleExportPNG = useCallback(async () => {
+        let svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
+        try {
+            svgString = await inlineFontsInSVG(svgString, appState);
+        } catch (e) {
+            console.error('Failed to inline fonts for PNG export', e);
+        }
         const { width, height } = appState.canvasConfig;
 
         const canvas = document.createElement('canvas');
@@ -721,8 +731,13 @@ export const useProjectManager = ({
      * Exports the project as a PDF document.
      * Uses jsPDF and renders via a temporary canvas.
      */
-    const handleExportPDF = useCallback(() => {
-        const svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
+    const handleExportPDF = useCallback(async () => {
+        let svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
+        try {
+            svgString = await inlineFontsInSVG(svgString, appState);
+        } catch (e) {
+            console.error('Failed to inline fonts for PDF export', e);
+        }
         const { width, height } = appState.canvasConfig;
 
         const canvas = document.createElement('canvas');

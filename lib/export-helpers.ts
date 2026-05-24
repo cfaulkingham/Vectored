@@ -2,6 +2,7 @@
 import type { AppState, Gradient, VectorObject, Layer, PolygonVertex, LineObject, TextObject, PolygonObject, Units, Point, MeasurementObject, PathObject } from '../types';
 import { getPolygonPathWithCurves, getSmoothedPolylinePath, getShapePath, calculateGenericPathBounds, getSVGPathFromObject, getPathTotalLength, getPointAndTangentAtLength, getObjectAsPolygon, flattenBezier, calculatePolygonArea, calculatePolygonPerimeter, getObjectVisualBounds } from './geometry';
 import { convertObjectToPolygon } from './path-converter';
+import { googleFonts } from './utils';
 
 /**
  * Escapes unsafe characters for XML/SVG strings to prevent syntax errors or injection.
@@ -714,11 +715,130 @@ export const generateSVGString = (appState: AppState, units: Units, options: { i
         content = `<g clip-path="url(#canvas-clip)">${content}</g>`;
     }
 
+    // Determine Google Fonts used dynamically
+    const usedGoogleFonts = new Set<string>();
+    layers.forEach(layer => {
+        if (layer.settings.patternType === 'words' && googleFonts.includes(layer.settings.wordFontFamily)) {
+            usedGoogleFonts.add(layer.settings.wordFontFamily);
+        }
+        layer.objects.forEach(obj => {
+            if (obj.type === 'text' && googleFonts.includes((obj as TextObject).fontFamily)) {
+                usedGoogleFonts.add((obj as TextObject).fontFamily);
+            }
+            if (obj.type === 'measurement' && googleFonts.includes((obj as MeasurementObject).fontFamily)) {
+                usedGoogleFonts.add((obj as MeasurementObject).fontFamily);
+            }
+        });
+    });
+
+    let fontImportStyles = '';
+    if (usedGoogleFonts.size > 0) {
+        fontImportStyles += '<style type="text/css"><![CDATA[\n';
+        usedGoogleFonts.forEach(font => {
+            const fontUrl = `https://fonts.googleapis.com/css2?family=${font.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+            fontImportStyles += `@import url('${fontUrl}');\n`;
+        });
+        fontImportStyles += ']]></style>';
+    }
+
     return `<svg width="${widthAttr}" height="${heightAttr}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">` +
-        `<defs>${filter}${canvasClipPath}${defs}</defs>` +
+        `<defs>${filter}${canvasClipPath}${fontImportStyles}${defs}</defs>` +
         `<rect width="100%" height="100%" fill="white"/>` +
         contentWrapperStart +
         content +
         contentWrapperEnd +
         `</svg>`;
 };
+
+/**
+ * Utility to convert an ArrayBuffer directly to a binary Base64 string safely.
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+/**
+ * Asynchronously preloads any Google Fonts used in the project and embeds them as Base64-encoded Data URIs.
+ * This is critical for canvas-based exports (like PNG/PDF) where external webfont CSS gets sandboxed by the standard img loading lifecycle.
+ */
+export async function inlineFontsInSVG(svgString: string, appState: AppState): Promise<string> {
+    const { layers } = appState;
+    const usedGoogleFonts = new Set<string>();
+    
+    layers.forEach(layer => {
+        if (layer.settings.patternType === 'words' && googleFonts.includes(layer.settings.wordFontFamily)) {
+            usedGoogleFonts.add(layer.settings.wordFontFamily);
+        }
+        layer.objects.forEach(obj => {
+            if (obj.type === 'text' && googleFonts.includes((obj as TextObject).fontFamily)) {
+                usedGoogleFonts.add((obj as TextObject).fontFamily);
+            }
+            if (obj.type === 'measurement' && googleFonts.includes((obj as MeasurementObject).fontFamily)) {
+                usedGoogleFonts.add((obj as MeasurementObject).fontFamily);
+            }
+        });
+    });
+
+    if (usedGoogleFonts.size === 0) {
+        return svgString;
+    }
+
+    let embeddedStyles = '';
+
+    for (const fontFamily of usedGoogleFonts) {
+        try {
+            const cssUrl = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+            const cssResponse = await fetch(cssUrl);
+            if (!cssResponse.ok) continue;
+            let cssText = await cssResponse.text();
+
+            // Find all font URLs in the CSS
+            const urlCleanRegex = /url\(([^)]+)\)/g;
+            let match;
+            const parsedUrls = new Set<string>();
+            while ((match = urlCleanRegex.exec(cssText)) !== null) {
+                const rawUrl = match[1].replace(/['"]/g, '').trim();
+                if (rawUrl.startsWith('http')) {
+                    parsedUrls.add(rawUrl);
+                }
+            }
+
+            for (const url of parsedUrls) {
+                try {
+                    const fontResponse = await fetch(url);
+                    if (!fontResponse.ok) continue;
+                    const fontBuffer = await fontResponse.arrayBuffer();
+                    const base64 = arrayBufferToBase64(fontBuffer);
+                    const format = url.endsWith('.woff2') ? 'woff2' : url.endsWith('.woff') ? 'woff' : url.endsWith('.ttf') ? 'truetype' : 'woff2';
+                    const dataUri = `data:font/${format};base64,${base64}`;
+                    
+                    cssText = cssText.split(url).join(dataUri);
+                } catch (err) {
+                    console.error(`Failed to fetch font file from url: ${url}`, err);
+                }
+            }
+            embeddedStyles += `${cssText}\n`;
+        } catch (e) {
+            console.error(`Failed to inline font: ${fontFamily}`, e);
+        }
+    }
+
+    if (embeddedStyles) {
+        const styleBlock = `<style type="text/css"><![CDATA[\n${embeddedStyles}\n]]></style>`;
+        
+        // Find </defs> and insert the base64 styles just before it
+        if (svgString.includes('</defs>')) {
+            return svgString.replace('</defs>', `${styleBlock}</defs>`);
+        } else {
+            return svgString.replace('<svg ', `<svg><style type="text/css"><![CDATA[\n${embeddedStyles}\n]]></style>`);
+        }
+    }
+
+    return svgString;
+}
