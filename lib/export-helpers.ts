@@ -155,10 +155,20 @@ export const generateDXFString = (appState: AppState, units: Units, options: { i
             dxfEntities.push(`0\nTEXT\n5\n${nextHandle()}\n100\nAcDbEntity\n8\n${layerName}\n100\nAcDbText\n10\n${textObj.x * scale}\n20\n${textObj.y * scale}\n40\n${textObj.fontSize * scale}\n1\n${textObj.text}\n50\n${textObj.rotation}\n`);
         };
 
+        const addCircle = (cx: number, cy: number, radius: number) => {
+            dxfEntities.push(`0\nCIRCLE\n5\n${nextHandle()}\n100\nAcDbEntity\n8\n${layerName}\n100\nAcDbCircle\n10\n${cx * scale}\n20\n${cy * scale}\n40\n${radius * scale}\n`);
+        };
+
         if (obj.type === 'line') {
             addLine(obj.x1, obj.y1, obj.x2, obj.y2);
         } else if (obj.type === 'text') {
             addText(obj);
+        } else if (obj.type === 'shape' && obj.shapeType === 'ellipse' && Math.abs(obj.width - obj.height) < 0.01) {
+            // Export native CIRCLE for optimal CNC/laser machine pathing
+            const radius = obj.width / 2;
+            const cx = obj.x + obj.width / 2;
+            const cy = obj.y + obj.height / 2;
+            addCircle(cx, cy, radius);
         } else if (obj.type === 'measurement') {
             const m = obj as MeasurementObject;
             addLine(m.x1, m.y1, m.x2, m.y2);

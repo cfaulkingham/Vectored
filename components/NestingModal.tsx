@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
-import type { AppState } from '../types';
-import { nestObjects } from '../lib/nesting';
-import { NestingResult } from '../types';
+import type { AppState, NestingResult } from '../types';
+import { nestObjectsAsync } from '../workers/nesting-worker-client';
 
 interface NestingModalProps {
     isOpen: boolean;
@@ -26,8 +25,7 @@ const NestingModal: React.FC<NestingModalProps> = ({ isOpen, onClose, appState, 
 
     const handleStartNesting = async () => {
         setIsProcessing(true);
-        // Give UI a moment to render the loading state before blocking the thread
-        setTimeout(() => {
+        try {
             const { layers, activeLayerId, canvasConfig } = appState;
             const layer = layers.find(l => l.id === activeLayerId);
             if (!layer || layer.objects.length === 0) {
@@ -35,10 +33,10 @@ const NestingModal: React.FC<NestingModalProps> = ({ isOpen, onClose, appState, 
                 return;
             }
 
-            // Nest all objects on the active layer
+            // Nest all objects on the active layer using background worker
             const objectsToNest = layer.objects;
 
-            const nestResult = nestObjects(objectsToNest, {
+            const nestResult = await nestObjectsAsync(objectsToNest, {
                 padding,
                 canvasWidth: canvasConfig.width,
                 canvasHeight: canvasConfig.height,
@@ -47,8 +45,11 @@ const NestingModal: React.FC<NestingModalProps> = ({ isOpen, onClose, appState, 
             });
 
             setResult(nestResult);
+        } catch (err) {
+            console.error('Nesting failed:', err);
+        } finally {
             setIsProcessing(false);
-        }, 100);
+        }
     };
 
     return (

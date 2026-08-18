@@ -1517,3 +1517,172 @@ export function sutherlandHodgmanClip(subjectPolygon: Point[], clipPolygon: Poin
     
     return currentPoints;
 }
+
+/**
+ * Prunes duplicate consecutive points within a given numerical distance epsilon.
+ * 
+ * @param points - Array of 2D points.
+ * @param epsilon - Distance threshold below which points are considered identical (default: 1e-4).
+ * @returns Cleaned array of unique consecutive points.
+ */
+export function pruneDuplicateVertices(points: Point[], epsilon: number = 1e-4): Point[] {
+    if (points.length <= 1) return [...points];
+    const cleaned: Point[] = [points[0]];
+    const epsSq = epsilon * epsilon;
+
+    for (let i = 1; i < points.length; i++) {
+        const prev = cleaned[cleaned.length - 1];
+        const curr = points[i];
+        const dx = curr[0] - prev[0];
+        const dy = curr[1] - prev[1];
+        if (dx * dx + dy * dy > epsSq) {
+            cleaned.push(curr);
+        }
+    }
+
+    // Check last vs first if closed loop with > 2 points
+    if (cleaned.length > 2) {
+        const first = cleaned[0];
+        const last = cleaned[cleaned.length - 1];
+        const dx = last[0] - first[0];
+        const dy = last[1] - first[1];
+        if (dx * dx + dy * dy <= epsSq) {
+            cleaned.pop();
+        }
+    }
+
+    return cleaned;
+}
+
+/**
+ * Removes redundant collinear points from a polygon or polyline.
+ * 
+ * @param points - Array of points.
+ * @param epsilon - Cross-product tolerance threshold for collinearity (default: 1e-4).
+ * @returns Array with redundant intermediate vertices removed.
+ */
+export function pruneColinearVertices(points: Point[], epsilon: number = 1e-4): Point[] {
+    if (points.length < 3) return [...points];
+    const cleaned: Point[] = [points[0]];
+
+    for (let i = 1; i < points.length - 1; i++) {
+        const prev = cleaned[cleaned.length - 1];
+        const curr = points[i];
+        const next = points[i + 1];
+
+        const v1x = curr[0] - prev[0];
+        const v1y = curr[1] - prev[1];
+        const v2x = next[0] - curr[0];
+        const v2y = next[1] - curr[1];
+
+        const cross = Math.abs(v1x * v2y - v1y * v2x);
+        const l1 = Math.hypot(v1x, v1y);
+        const l2 = Math.hypot(v2x, v2y);
+
+        if (l1 === 0 || l2 === 0 || cross / (l1 * l2) > epsilon) {
+            cleaned.push(curr);
+        }
+    }
+
+    cleaned.push(points[points.length - 1]);
+    return cleaned;
+}
+
+/**
+ * Enforces polygon vertex winding order (Clockwise for outer perimeters, Counter-Clockwise for holes).
+ * 
+ * @param points - Polygon vertex loop.
+ * @param clockwise - True for clockwise, false for counter-clockwise.
+ * @returns Polygon points with guaranteed winding.
+ */
+export function normalizePolygonWinding(points: Point[], clockwise: boolean = true): Point[] {
+    if (points.length < 3) return [...points];
+    let signedArea = 0;
+    for (let i = 0; i < points.length; i++) {
+        const p1 = points[i];
+        const p2 = points[(i + 1) % points.length];
+        signedArea += (p1[0] * p2[1] - p2[0] * p1[1]);
+    }
+    const isCurrentlyCW = signedArea < 0;
+    if (isCurrentlyCW !== clockwise) {
+        return [...points].reverse();
+    }
+    return [...points];
+}
+
+/**
+ * Computes an outward (or inward) kerf compensation offset for CNC or laser cutter paths.
+ * 
+ * @param points - Polygon points.
+ * @param kerfOffset - Offset distance (positive for outward expansion, negative for inward).
+ * @param isClosed - Whether the path is a closed polygon.
+ * @returns Offset polygon points.
+ */
+export function calculateKerfOffset(points: Point[], kerfOffset: number, isClosed: boolean = true): Point[] {
+    if (points.length < 2 || kerfOffset === 0) return [...points];
+    const n = points.length;
+    const offsetPoints: Point[] = [];
+
+    // Calculate edge normals
+    const normals: Point[] = [];
+    for (let i = 0; i < (isClosed ? n : n - 1); i++) {
+        const p1 = points[i];
+        const p2 = points[(i + 1) % n];
+        const dx = p2[0] - p1[0];
+        const dy = p2[1] - p1[1];
+        const len = Math.hypot(dx, dy);
+        if (len === 0) {
+            normals.push([0, 0]);
+        } else {
+            // Normal pointing right of direction vector (outward for CCW / inward for CW)
+            normals.push([dy / len, -dx / len]);
+        }
+    }
+
+    if (!isClosed) {
+        // Open polyline offset
+        offsetPoints.push([
+            points[0][0] + normals[0][0] * kerfOffset,
+            points[0][1] + normals[0][1] * kerfOffset
+        ]);
+
+        for (let i = 1; i < n - 1; i++) {
+            const n1 = normals[i - 1];
+            const n2 = normals[i];
+            const avgNx = (n1[0] + n2[0]) / 2;
+            const avgNy = (n1[1] + n2[1]) / 2;
+            const avgLen = Math.hypot(avgNx, avgNy);
+            if (avgLen > 1e-4) {
+                const scale = kerfOffset / avgLen;
+                offsetPoints.push([points[i][0] + avgNx * scale, points[i][1] + avgNy * scale]);
+            } else {
+                offsetPoints.push([points[i][0] + n1[0] * kerfOffset, points[i][1] + n1[1] * kerfOffset]);
+            }
+        }
+
+        const lastN = normals[normals.length - 1];
+        offsetPoints.push([
+            points[n - 1][0] + lastN[0] * kerfOffset,
+            points[n - 1][1] + lastN[1] * kerfOffset
+        ]);
+        return offsetPoints;
+    }
+
+    // Closed polygon vertex offsets
+    for (let i = 0; i < n; i++) {
+        const prevIdx = (i - 1 + n) % n;
+        const n1 = normals[prevIdx];
+        const n2 = normals[i];
+        const avgNx = (n1[0] + n2[0]) / 2;
+        const avgNy = (n1[1] + n2[1]) / 2;
+        const avgLen = Math.hypot(avgNx, avgNy);
+        if (avgLen > 1e-4) {
+            const scale = kerfOffset / avgLen;
+            offsetPoints.push([points[i][0] + avgNx * scale, points[i][1] + avgNy * scale]);
+        } else {
+            offsetPoints.push([points[i][0] + n2[0] * kerfOffset, points[i][1] + n2[1] * kerfOffset]);
+        }
+    }
+
+    return offsetPoints;
+}

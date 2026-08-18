@@ -331,7 +331,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const renderData = useCanvasRenderData({ layers, canvasConfig, units, dpi: DPI });
 
-    const contextValue: EditorContextValue = {
+    const contextValue: EditorContextValue = useMemo(() => ({
         interaction, setInteraction,
         editingMode, setEditingMode,
         units, setUnits,
@@ -375,7 +375,40 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         renderData,
         dpi: DPI
-    };
+    }), [
+        interaction, setInteraction,
+        editingMode, setEditingMode,
+        units, setUnits,
+        activeTool, setActiveTool,
+        activeShapeType, setActiveShapeType,
+        clipboardObject, setClipboardObject,
+        viewState, setViewState,
+        mirrorMode, setMirrorMode,
+        mirrorGap, setMirrorGap,
+        selectedObjectInfo, setSelectedObjectInfo,
+        handleToolChange,
+        toolSettings, handleUpdateToolSettings,
+        snapSettings, setSnapSettings,
+        activeGuides,
+        cursorPos, setCursorPos,
+        appState, setAppState, undo, redo, canUndo, canRedo, reset, commit,
+        activeLayer, activeLayerId, canvasConfig, selectedObjects,
+        uniqueFills,
+        guides,
+        updateLayerPattern, handleUpdateActiveLayer, handleUpdateActiveLayerSettings, handleDensityImageChange,
+        handleAddLayer, handleDuplicateLayer, handleDeleteLayer, handleToggleVisibility, handleRenameLayer,
+        handleLayerColorChange, handleLayerBlendModeChange, handleSelectLayer, handleMoveLayer, handleToggleLockLayer, handleSetLayers, handleUpdateObjectProperty,
+        canGroup, canUngroup, canConvertToPath, isAttachToPathEnabled, selectionBounds,
+        handleConvertObjectToPath, handleGroup, handleUngroup, handleUpdateSelectedObjects, handleDeleteSelectedObjects,
+        handleCopySelectedObject, handlePasteObject, handleMoveSelectedObjects, handleReorderObject, handleAlignObjects,
+        handleAlignToCanvas, handleSelectAll, handleFlipObject, handleSelectObjectsByFill, handleAttachToPath, handleApplyPathGroup,
+        handleBooleanOperation,
+        projectManager, handleCanvasConfigChange, handleInitiateImport,
+        handleCanvasMouseDown, handleRulerMouseDown, handleCanvasMouseMove, handleCanvasMouseUp, handleCanvasDoubleClick,
+        handleUpdateTextContent, handleFinishTextEditing, handleClearClipPath,
+        patternPreviewData, handleApplyPatternFill,
+        renderData
+    ]);
 
     return (
         <EditorContext.Provider value={contextValue}>
