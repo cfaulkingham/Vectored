@@ -4,6 +4,94 @@ import type { Point, PolygonVertex, ResizeHandle, VectorObject, ShapeType, Mirro
 import { transformPathData as _transformPathData } from './svg-parser';
 export const transformPathData = _transformPathData;
 
+// Ensure DOMMatrix / DOMPoint exist in all environments (browser, worker, node/vitest)
+class FallbackDOMMatrix {
+    a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+    constructor(init?: string | number[]) {
+        if (Array.isArray(init) && init.length >= 6) {
+            [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+        }
+    }
+    translateSelf(tx = 0, ty = 0) {
+        this.e += this.a * tx + this.c * ty;
+        this.f += this.b * tx + this.d * ty;
+        return this;
+    }
+    scaleSelf(sx = 1, sy = sx) {
+        this.a *= sx;
+        this.b *= sx;
+        this.c *= sy;
+        this.d *= sy;
+        return this;
+    }
+    rotateSelf(deg = 0) {
+        const rad = (deg * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const a = this.a * cos + this.c * sin;
+        const b = this.b * cos + this.d * sin;
+        const c = this.a * -sin + this.c * cos;
+        const d = this.b * -sin + this.d * cos;
+        this.a = a; this.b = b; this.c = c; this.d = d;
+        return this;
+    }
+    skewXSelf(deg = 0) {
+        const tan = Math.tan((deg * Math.PI) / 180);
+        this.a += this.c * tan;
+        this.b += this.d * tan;
+        return this;
+    }
+    skewYSelf(deg = 0) {
+        const tan = Math.tan((deg * Math.PI) / 180);
+        this.c += this.a * tan;
+        this.d += this.b * tan;
+        return this;
+    }
+    inverse() {
+        const det = this.a * this.d - this.b * this.c;
+        if (det === 0) return new FallbackDOMMatrix();
+        const inv = new FallbackDOMMatrix();
+        inv.a = this.d / det;
+        inv.b = -this.b / det;
+        inv.c = -this.c / det;
+        inv.d = this.a / det;
+        inv.e = (this.c * this.f - this.d * this.e) / det;
+        inv.f = (this.b * this.e - this.a * this.f) / det;
+        return inv;
+    }
+    transformPoint(point: { x: number; y: number }) {
+        return {
+            x: point.x * this.a + point.y * this.c + this.e,
+            y: point.x * this.b + point.y * this.d + this.f,
+        };
+    }
+}
+
+class FallbackDOMPoint {
+    x: number;
+    y: number;
+    constructor(x = 0, y = 0) {
+        this.x = x;
+        this.y = y;
+    }
+    matrixTransform(matrix: any) {
+        if (typeof matrix.transformPoint === 'function') {
+            const res = matrix.transformPoint(this);
+            return new FallbackDOMPoint(res.x, res.y);
+        }
+        const x = this.x * (matrix.a ?? 1) + this.y * (matrix.c ?? 0) + (matrix.e ?? 0);
+        const y = this.x * (matrix.b ?? 0) + this.y * (matrix.d ?? 1) + (matrix.f ?? 0);
+        return new FallbackDOMPoint(x, y);
+    }
+}
+
+if (typeof globalThis.DOMMatrix === 'undefined') {
+    (globalThis as any).DOMMatrix = FallbackDOMMatrix;
+}
+if (typeof globalThis.DOMPoint === 'undefined') {
+    (globalThis as any).DOMPoint = FallbackDOMPoint;
+}
+
 /**
  * Adds two 2D points together vector-wise.
  * @param p1 - The first point [x, y].
@@ -1024,7 +1112,15 @@ export const transformWorldPointToLayerLocal = (worldPoint: Point, layer: Layer,
     return transformPoint(worldPoint, inverseMatrix);
 };
 
-const pathMeasureElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+let cachedPathMeasureElement: SVGPathElement | null = null;
+function getPathMeasureElement(): SVGPathElement | null {
+    if (cachedPathMeasureElement) return cachedPathMeasureElement;
+    if (typeof document !== 'undefined' && typeof document.createElementNS === 'function') {
+        cachedPathMeasureElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        return cachedPathMeasureElement;
+    }
+    return null;
+}
 
 /**
  * Extracts the SVG 'd' attribute string representing the geometry of any VectorObject.
@@ -1195,8 +1291,18 @@ export function getSVGPathFromObject(object: VectorObject): string | null {
  */
 export function getPathTotalLength(d: string): number {
     if (!d) return 0;
-    pathMeasureElement.setAttribute('d', d);
-    return pathMeasureElement.getTotalLength();
+    const el = getPathMeasureElement();
+    if (!el) {
+        // Fallback length estimation for lines/simple segments if non-DOM
+        const match = d.match(/M\s*([\d.-]+)[\s,]+([\d.-]+)\s*L\s*([\d.-]+)[\s,]+([\d.-]+)/i);
+        if (match) {
+            const [, x1, y1, x2, y2] = match.map(Number);
+            return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        }
+        return 0;
+    }
+    el.setAttribute('d', d);
+    return el.getTotalLength();
 }
 
 /**
@@ -1206,21 +1312,37 @@ export function getPathTotalLength(d: string): number {
  * @returns An object containing the point [x, y] and angle in degrees.
  */
 export function getPointAndTangentAtLength(d: string, length: number): { point: Point, angle: number } | null {
-    pathMeasureElement.setAttribute('d', d);
-    const totalLength = pathMeasureElement.getTotalLength();
+    const el = getPathMeasureElement();
+    if (!el) {
+        // Fallback for simple line paths
+        const match = d.match(/M\s*([\d.-]+)[\s,]+([\d.-]+)\s*L\s*([\d.-]+)[\s,]+([\d.-]+)/i);
+        if (match) {
+            const [, x1, y1, x2, y2] = match.map(Number);
+            const totalLen = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            if (totalLen === 0) return null;
+            const t = Math.max(0, Math.min(length / totalLen, 1));
+            const point: Point = [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t];
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            return { point, angle };
+        }
+        return null;
+    }
+
+    el.setAttribute('d', d);
+    const totalLength = el.getTotalLength();
     if (totalLength === 0) return null;
 
     const clampedLength = Math.max(0, Math.min(length, totalLength));
     
-    const point = pathMeasureElement.getPointAtLength(clampedLength);
+    const point = el.getPointAtLength(clampedLength);
 
     // Approximate tangent by taking two close points
-    const p1 = pathMeasureElement.getPointAtLength(Math.max(0, clampedLength - 0.1));
-    const p2 = pathMeasureElement.getPointAtLength(Math.min(totalLength, clampedLength + 0.1));
+    const p1 = el.getPointAtLength(Math.max(0, clampedLength - 0.1));
+    const p2 = el.getPointAtLength(Math.min(totalLength, clampedLength + 0.1));
     
     // Check for stationary point
     if (p1.x === p2.x && p1.y === p2.y && clampedLength > 0.1) {
-        const p0 = pathMeasureElement.getPointAtLength(clampedLength - 0.2);
+        const p0 = el.getPointAtLength(clampedLength - 0.2);
         const angle = Math.atan2(point.y - p0.y, point.x - p0.x) * 180 / Math.PI;
         return { point: [point.x, point.y], angle };
     }

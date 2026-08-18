@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ImageObject } from '../types';
 import { ControlSlider, ControlSelect, SectionHeader } from './controls/CommonControls';
-import { imageTracer, blur, getSvgString } from '../imagetracer';
+import { traceImageAsync } from '../imagetracer/tracer-worker-client';
 import { OPTION_PRESETS } from '../imagetracer/presets';
 
 interface TraceImageModalProps {
@@ -47,7 +47,7 @@ const TraceImageModal: React.FC<TraceImageModalProps> = ({ isOpen, onClose, imag
         const img = new Image();
         img.crossOrigin = 'Anonymous';
 
-        img.onload = () => {
+        img.onload = async () => {
             try {
                 const canvas = document.createElement('canvas');
                 canvas.width = img.width;
@@ -61,24 +61,22 @@ const TraceImageModal: React.FC<TraceImageModalProps> = ({ isOpen, onClose, imag
                 
                 ctx.drawImage(img, 0, 0);
                 const originalImageData = ctx.getImageData(0, 0, img.width, img.height);
-                
                 const presetBaseOptions = { ...OPTION_PRESETS.default, ...OPTION_PRESETS[preset] };
-                let imageDataToProcess = originalImageData;
-
-                if (params.blurradius > 0) {
-                    imageDataToProcess = blur(originalImageData, params.blurradius, presetBaseOptions.blurdelta);
-                }
-
                 const options = {
-                    ...presetBaseOptions, // Start with preset to get non-UI values like blurdelta
-                    ...params, // Override with user-tweaked params
+                    ...presetBaseOptions,
+                    ...params,
                     pathomit: params.pathOmit,
                 };
-                
-                const td = imageTracer.imageDataToTracedata(imageDataToProcess, options);
+
+                const { tracedata: td, svgString } = await traceImageAsync(
+                    originalImageData, 
+                    options, 
+                    params.blurradius, 
+                    presetBaseOptions.blurdelta
+                );
+
                 setTracedata(td);
 
-                const svgString = getSvgString(td, { ...options, scale: 1, viewbox: true });
                 const parser = new DOMParser();
                 const svgDoc = parser.parseFromString(svgString, "image/svg+xml");
                 const svgContent = Array.from(svgDoc.documentElement.children).map(child => child.outerHTML).join('');

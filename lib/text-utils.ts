@@ -1,7 +1,6 @@
-
 /**
  * Measures the visual dimensions of a text string using an off-screen SVG element.
- * Handles multiline text by breaking lines into tspans.
+ * Handles multiline text by breaking lines into tspans, with robust fallback for non-DOM environments.
  * 
  * @param text - The string to measure. Can include newlines ('\n').
  * @param fontSize - The font size in pixels.
@@ -11,50 +10,72 @@
  * @param letterSpacing - The letter spacing in pixels (default 0).
  * @returns An object containing the width and height of the rendered text bounding box.
  */
-export const measureText = (text: string, fontSize: number, fontFamily: string, fontWeight: string, lineHeight: number = 1.2, letterSpacing: number = 0): { width: number, height: number } => {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.style.position = 'absolute';
-    svg.style.visibility = 'hidden';
-    svg.style.width = 'auto';
-    svg.style.height = 'auto';
+export const measureText = (
+    text: string, 
+    fontSize: number, 
+    fontFamily: string, 
+    fontWeight: string, 
+    lineHeight: number = 1.2, 
+    letterSpacing: number = 0
+): { width: number; height: number } => {
+    if (typeof document === 'undefined' || typeof document.createElementNS !== 'function') {
+        const lines = text.split('\n');
+        const maxLineLength = Math.max(...lines.map(l => l.length), 1);
+        const charWidth = fontSize * 0.6;
+        return {
+            width: Math.ceil(maxLineLength * charWidth + letterSpacing * maxLineLength + fontSize * 0.2),
+            height: Math.ceil(lines.length * fontSize * lineHeight + fontSize * 0.2),
+        };
+    }
 
-    const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    textEl.setAttribute('font-size', String(fontSize));
-    textEl.setAttribute('font-family', fontFamily);
-    textEl.setAttribute('font-weight', fontWeight);
-    textEl.setAttribute('letter-spacing', String(letterSpacing));
-    // Match the dominant-baseline used in the Canvas renderer to ensure accurate height measurement
-    textEl.setAttribute('dominant-baseline', 'hanging');
-    textEl.style.whiteSpace = 'pre';
+    try {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.style.position = 'absolute';
+        svg.style.visibility = 'hidden';
+        svg.style.width = 'auto';
+        svg.style.height = 'auto';
 
-    // Handle multiline text
-    const lines = text.split('\n');
-    textEl.textContent = null; // Clear any previous content
-    lines.forEach((line, index) => {
-        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-        tspan.setAttribute('x', '0');
-        tspan.setAttribute('dy', index === 0 ? '0' : `${lineHeight}em`); // Standard line height
-        tspan.textContent = line || ' '; // Use a space for empty lines to maintain height
-        textEl.appendChild(tspan);
-    });
+        const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        textEl.setAttribute('font-size', String(fontSize));
+        textEl.setAttribute('font-family', fontFamily);
+        textEl.setAttribute('font-weight', fontWeight);
+        textEl.setAttribute('letter-spacing', String(letterSpacing));
+        textEl.setAttribute('dominant-baseline', 'hanging');
+        textEl.style.whiteSpace = 'pre';
 
-    svg.appendChild(textEl);
-    document.body.appendChild(svg);
-    const bbox = textEl.getBBox();
-    document.body.removeChild(svg);
+        // Handle multiline text
+        const lines = text.split('\n');
+        textEl.textContent = null;
+        lines.forEach((line, index) => {
+            const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            tspan.setAttribute('x', '0');
+            tspan.setAttribute('dy', index === 0 ? '0' : `${lineHeight}em`);
+            tspan.textContent = line || ' ';
+            textEl.appendChild(tspan);
+        });
 
-    // Add padding to the bounding box to ensure it fully covers the text (including some ascenders/descenders or italic spill)
-    // and provides a better visual selection area.
-    // Increased padding to ensure text is easily clickable and fully encompassed.
-    const paddingX = fontSize * .2;
-    const paddingY = fontSize * .2;
+        svg.appendChild(textEl);
+        document.body.appendChild(svg);
+        const bbox = typeof textEl.getBBox === 'function' ? textEl.getBBox() : { width: 100, height: 20, x: 0, y: 0 };
+        document.body.removeChild(svg);
 
-    // Ensure we capture the full visual extent if it starts offset from 0
-    const width = Math.max(bbox.width, bbox.x + bbox.width) + paddingX;
-    const height = Math.max(bbox.height, bbox.y + bbox.height) + paddingY;
+        const paddingX = fontSize * 0.2;
+        const paddingY = fontSize * 0.2;
 
-    return { 
-        width: Math.ceil(width), 
-        height: Math.ceil(height) 
-    };
+        const width = Math.max(bbox.width, bbox.x + bbox.width) + paddingX;
+        const height = Math.max(bbox.height, bbox.y + bbox.height) + paddingY;
+
+        return { 
+            width: Math.ceil(width), 
+            height: Math.ceil(height) 
+        };
+    } catch {
+        const lines = text.split('\n');
+        const maxLineLength = Math.max(...lines.map(l => l.length), 1);
+        const charWidth = fontSize * 0.6;
+        return {
+            width: Math.ceil(maxLineLength * charWidth + letterSpacing * maxLineLength + fontSize * 0.2),
+            height: Math.ceil(lines.length * fontSize * lineHeight + fontSize * 0.2),
+        };
+    }
 };

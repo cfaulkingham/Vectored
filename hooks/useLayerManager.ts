@@ -1,7 +1,7 @@
 
 import React, { useCallback } from 'react';
 import { produce } from 'immer';
-import type { AppState, Layer, BlendMode, LayerSettings } from '../types';
+import type { AppState, Layer, BlendMode, LayerSettings, VectorObject } from '../types';
 import { createNewLayer } from '../lib/layer-helpers';
 
 interface UseLayerManagerProps {
@@ -231,9 +231,14 @@ export const useLayerManager = ({ setAppState, activeLayerId, selectedObjectInfo
     }, [setAppState]);
 
     /**
-     * Updates an object property directly (visibility, locking, naming)
+     * Updates an object property directly (visibility, locking, naming, style)
      */
-    const handleUpdateObjectProperty = useCallback((layerId: string, objectId: string, property: string, value: any) => {
+    const handleUpdateObjectProperty = useCallback(<K extends keyof VectorObject>(
+        layerId: string, 
+        objectId: string, 
+        property: K | string, 
+        value: any
+    ) => {
         setAppState(produce((draft: AppState) => {
             const layer = draft.layers.find(l => l.id === layerId);
             if (!layer) return;

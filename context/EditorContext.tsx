@@ -87,7 +87,7 @@ interface EditorContextValue {
     handleMoveLayer: (direction: 'up' | 'down') => void;
     handleToggleLockLayer: (id: string) => void;
     handleSetLayers: (layers: Layer[]) => void;
-    handleUpdateObjectProperty: (layerId: string, objectId: string, property: string, value: any) => void;
+    handleUpdateObjectProperty: <K extends keyof VectorObject>(layerId: string, objectId: string, property: K | string, value: any) => void;
 
     // Object Manager
     canGroup: boolean;
