@@ -114,7 +114,7 @@ interface EditorContextValue {
     handleBooleanOperation: (operation: 'unite' | 'subtract' | 'intersect' | 'exclude') => void;
 
     // Project Manager
-    projectManager: any;
+    projectManager: ReturnType<typeof useProjectManager>;
     handleCanvasConfigChange: (config: { width: number; height: number, clipToCanvas?: boolean }) => void;
     handleInitiateImport: (file: File, type: 'svg' | 'image', point?: Point) => void;
 

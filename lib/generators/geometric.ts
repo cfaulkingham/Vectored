@@ -3,8 +3,7 @@ import type { Point, PrimitivePatternData } from '../../types';
 import { getSmoothedPolylinePath } from '../geometry';
 import type { GeneratorContext } from './utils';
 
-// d3 required for rose-curve path generation
-declare const d3: any;
+import * as d3 from 'd3';
 
 /**
  * Generates a Spirograph pattern (Hypotrochoid).

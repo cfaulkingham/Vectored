@@ -1,7 +1,8 @@
 
 import React, { useState, useCallback } from 'react';
 import { produce } from 'immer';
-import { triggerDownload } from '../lib/utils';
+import { saveFile, showFileError } from '../lib/file-io';
+import { renderSVGToCanvas, canvasToPNG } from '../lib/raster-export';
 import { parseSVG } from '../lib/svg-parser';
 import { sanitizeFontFaces } from '../lib/safe-svg-parser';
 import { calculateGenericPathBounds, calculateGroupBounds, getTransformMatrix, applyMirrorToObject, transformPoint, calculatePolygonBounds, calculatePathBounds, transformPathData } from '../lib/geometry';
@@ -174,7 +175,7 @@ export const useProjectManager = ({
     /**
      * Saves the current project state as a JSON file.
      */
-    const handleSave = (newFilename: string) => {
+    const handleSave = async (newFilename: string) => {
         const projectData = {
             layers: appState.layers,
             activeLayerId: appState.activeLayerId,
@@ -183,9 +184,7 @@ export const useProjectManager = ({
         };
         const jsonString = JSON.stringify(projectData, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
-        const href = URL.createObjectURL(blob);
-        triggerDownload(href, `${newFilename}.json`);
-        URL.revokeObjectURL(href);
+        if (!await saveFile(blob, `${newFilename}.json`)) return;
         setIsSaveModalOpen(false);
         setFilename(newFilename);
         if (nextAction) {
@@ -197,65 +196,41 @@ export const useProjectManager = ({
     /**
      * Loads a project from a JSON file.
      */
-    const handleFileSelectedForLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            
-            // Extract filename without extension and update state
-            const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
-            setFilename(nameWithoutExtension);
+    const loadProjectFile = async (file: File) => {
+        try {
+            const projectData = JSON.parse(await file.text()) as AppState;
+            if (!Array.isArray(projectData.layers) || !projectData.canvasConfig) {
+                throw new Error('Invalid project file.');
+            }
+            projectData.guides ||= [];
+            projectData.layers.forEach(layer => {
+                layer.objects ||= [];
+                layer.points ||= [];
+            });
 
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const result = event.target?.result as string;
-                    const projectData = JSON.parse(result) as AppState; 
-                    if (projectData.layers && projectData.canvasConfig) {
-                        // Validate and sanitize data
-                        if (!projectData.guides) {
-                            projectData.guides = [];
-                        }
-                        
-                        projectData.layers.forEach(layer => {
-                            if (!layer.objects) layer.objects = [];
-                            if (!layer.points) layer.points = [];
-                        });
-
-                        reset(projectData);
-                        const urls = new Set<string>();
-                        projectData.layers.forEach((l) => {
-                            if (l.settings.densityImageURL) {
-                                urls.add(l.settings.densityImageURL);
-                            }
-                        });
-                        const newDensityImages: Record<string, HTMLImageElement> = {};
-                        let loadedCount = 0;
-                        if (urls.size === 0) {
-                            setDensityImages({});
-                            return;
-                        }
-                        urls.forEach(url => {
-                            const img = new Image();
-                            img.onload = () => {
-                                newDensityImages[url] = img;
-                                loadedCount++;
-                                if (loadedCount === urls.size) {
-                                    setDensityImages(newDensityImages);
-                                }
-                            };
-                            img.src = url;
-                        });
-                    } else {
-                        alert("Invalid project file.");
-                    }
-                } catch (err) {
-                    alert("Error loading project file.");
-                    console.error(err);
-                }
-            };
-            reader.readAsText(file);
-            e.target.value = '';
+            const urls = new Set<string>();
+            projectData.layers.forEach(layer => {
+                if (layer.settings.densityImageURL) urls.add(layer.settings.densityImageURL);
+            });
+            const images: Record<string, HTMLImageElement> = {};
+            await Promise.all([...urls].map(url => new Promise<void>(resolve => {
+                const image = new Image();
+                image.onload = () => { images[url] = image; resolve(); };
+                image.onerror = () => resolve();
+                image.src = url;
+            })));
+            reset(projectData);
+            setDensityImages(images);
+            setFilename(file.name.replace(/\.[^/.]+$/, ''));
+        } catch (error) {
+            await showFileError('Could not open the project.', error);
         }
+    };
+
+    const handleFileSelectedForLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (file) void loadProjectFile(file);
     };
 
     /**
@@ -660,122 +635,35 @@ export const useProjectManager = ({
      * Exports the project as an SVG file.
      */
     const handleExportSVG = useCallback(async () => {
-        let svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
-        try {
-            svgString = await inlineFontsInSVG(svgString, appState);
-        } catch (e) {
-            console.error('Failed to inline fonts for SVG export', e);
-        }
-        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        const href = URL.createObjectURL(blob);
-        triggerDownload(href, `${filename}.svg`);
-        URL.revokeObjectURL(href);
-        setIsExportModalOpen(false);
+        const svgString = await inlineFontsInSVG(
+            generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements }), appState
+        );
+        return saveFile(new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' }), `${filename}.svg`);
     }, [appState, units, isExportInverted, includeMeasurements, filename]);
 
-    /**
-     * Exports the project as a DXF file.
-     */
-    const handleExportDXF = useCallback(() => {
-        const dxfString = generateDXFString(appState, units, { includeMeasurements }); 
-        const blob = new Blob([dxfString], { type: 'application/dxf' });
-        const href = URL.createObjectURL(blob);
-        triggerDownload(href, `${filename}.dxf`);
-        URL.revokeObjectURL(href);
-        setIsExportModalOpen(false);
+    const handleExportDXF = useCallback(async () => {
+        const dxfString = generateDXFString(appState, units, { includeMeasurements });
+        return saveFile(new Blob([dxfString], { type: 'application/dxf' }), `${filename}.dxf`);
     }, [appState, filename, units, includeMeasurements]);
 
-    /**
-     * Exports the project as a PNG image.
-     * Uses a temporary canvas to render the SVG string.
-     */
     const handleExportPNG = useCallback(async () => {
-        let svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
-        try {
-            svgString = await inlineFontsInSVG(svgString, appState);
-        } catch (e) {
-            console.error('Failed to inline fonts for PNG export', e);
-        }
+        const svgString = await inlineFontsInSVG(
+            generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements }), appState
+        );
         const { width, height } = appState.canvasConfig;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width * pngExportScale;
-        canvas.height = height * pngExportScale;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) {
-            alert('Could not create canvas context for PNG export.');
-            return;
-        }
-
-        const img = new Image();
-        img.onload = () => {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/png');
-            triggerDownload(dataUrl, `${filename}.png`);
-            URL.revokeObjectURL(img.src);
-            setIsExportModalOpen(false);
-        };
-        img.onerror = (e) => {
-            console.error('Error loading SVG for PNG export', e);
-            alert('An error occurred while generating the PNG.');
-            URL.revokeObjectURL(img.src);
-        };
-
-        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        img.src = URL.createObjectURL(blob);
-
+        const canvas = await renderSVGToCanvas(svgString, width, height, pngExportScale);
+        return saveFile(await canvasToPNG(canvas), `${filename}.png`);
     }, [appState, units, isExportInverted, includeMeasurements, pngExportScale, filename]);
 
-    /**
-     * Exports the project as a PDF document.
-     * Uses jsPDF and renders via a temporary canvas.
-     */
     const handleExportPDF = useCallback(async () => {
-        let svgString = generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements });
-        try {
-            svgString = await inlineFontsInSVG(svgString, appState);
-        } catch (e) {
-            console.error('Failed to inline fonts for PDF export', e);
-        }
+        const svgString = await inlineFontsInSVG(
+            generateSVGString(appState, units, { inverted: isExportInverted, includeMeasurements }), appState
+        );
         const { width, height } = appState.canvasConfig;
-
-        const canvas = document.createElement('canvas');
-        const pdfScale = 4;
-        canvas.width = width * pdfScale;
-        canvas.height = height * pdfScale;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) {
-            alert('Could not create canvas context for PDF export.');
-            return;
-        }
-
-        const img = new Image();
-        img.onload = () => {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-
-            const orientation = width > height ? 'l' : 'p';
-            const pdf = new jsPDF({
-                orientation,
-                unit: 'px',
-                format: [width, height],
-            });
-
-            pdf.addImage(dataUrl, 'JPEG', 0, 0, width, height);
-            pdf.save(`${filename}.pdf`);
-            
-            URL.revokeObjectURL(img.src);
-            setIsExportModalOpen(false);
-        };
-        img.onerror = () => {
-            alert('An error occurred while generating the PDF.');
-            URL.revokeObjectURL(img.src);
-        };
-        
-        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        img.src = URL.createObjectURL(blob);
+        const canvas = await renderSVGToCanvas(svgString, width, height, 4);
+        const pdf = new jsPDF({ orientation: width > height ? 'l' : 'p', unit: 'px', format: [width, height] });
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, width, height);
+        return saveFile(pdf.output('blob'), `${filename}.pdf`);
     }, [appState, units, isExportInverted, includeMeasurements, filename]);
 
     /**
@@ -801,6 +689,7 @@ export const useProjectManager = ({
         isExportModalOpen, setIsExportModalOpen,
         isNewProjectModalOpen, setIsNewProjectModalOpen,
         isSaveModalOpen, setIsSaveModalOpen,
+        handleCancelSave: () => { setIsSaveModalOpen(false); setNextAction(null); },
         isCanvasSettingsModalOpen, setIsCanvasSettingsModalOpen,
         isNewProjectSettingsOpen, setIsNewProjectSettingsOpen,
         isHelpModalOpen, setIsHelpModalOpen,
@@ -825,6 +714,7 @@ export const useProjectManager = ({
         handleSaveProjectFile,
         handleSave,
         handleFileSelectedForLoad,
+        loadProjectFile,
         handleExportSVG,
         handleExportPNG,
         handleExportPDF,

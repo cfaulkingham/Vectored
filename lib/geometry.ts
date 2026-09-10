@@ -1,3 +1,4 @@
+import { polygonContains } from 'd3';
 
 import type { Point, PolygonVertex, ResizeHandle, VectorObject, ShapeType, MirrorMode, PolygonObject, PathObject, LineObject, Layer, GenericPathObject, ShapeObject, FlowGuideObject, TextObject, ImageObject, GroupObject, MeasurementObject } from '../types';
 // FIX: Re-export transformPathData to make it available to other modules.
@@ -1437,8 +1438,7 @@ export function clipLineSegmentByPolygon(p1: Point, p2: Point, polygon: Point[])
         const end = uniquePoints[i+1];
         const midPoint: Point = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
 
-        // Assuming d3 is globally available
-        if ((window as any).d3.polygonContains(polygon, midPoint)) {
+        if (polygonContains(polygon, midPoint)) {
             clippedSegments.push([start, end]);
         }
     }

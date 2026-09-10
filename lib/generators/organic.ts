@@ -4,8 +4,7 @@ import { getSmoothedPolylinePath, distToSegmentSq } from '../geometry';
 import { SimplexNoise, gaussianBlur } from './utils';
 import type { GeneratorContext } from './utils';
 
-// d3 required for contours and geoPath
-declare const d3: any;
+import * as d3 from 'd3';
 
 /**
  * Generates a Flow Field pattern, simulating fluid movement or wind.
@@ -172,7 +171,7 @@ export const generateReactionDiffusion = (ctx: GeneratorContext): PrimitivePatte
     for(let i=0; i<w*h; i++) { resultGrid[i] = gridA[i] - gridB[i]; }
 
     const contours = d3.contours().size([w, h]).thresholds(d3.range(0, 1, 1 / rdLineCount));
-    const contourData = contours(resultGrid);
+    const contourData = contours(Array.from(resultGrid));
     
     const scaleX = bounds.width / w;
     const scaleY = bounds.height / h;
@@ -324,7 +323,7 @@ export const generateTopo = (ctx: GeneratorContext): PrimitivePatternData => {
              }
              
              const contours = d3.contours().size([mapW, mapH]).thresholds(d3.range(5, 255, (255 - 5) / topoLineCount)).smooth(true);
-             contourData = contours(finalMap);
+             contourData = contours(Array.from(finalMap));
              const customProjection = d3.geoIdentity().translate([bounds.x + densityMap.offsetX, bounds.y + densityMap.offsetY]);
              geoPath = d3.geoPath(customProjection);
          } else {
@@ -344,7 +343,7 @@ export const generateTopo = (ctx: GeneratorContext): PrimitivePatternData => {
         }
         
         const contours = d3.contours().size([mapW, mapH]).thresholds(d3.range(5, 255, (255 - 5) / topoLineCount)).smooth(true);
-        contourData = contours(finalMap);
+        contourData = contours(Array.from(finalMap));
         
         const scaleX = bounds.width / mapW;
         const scaleY = bounds.height / mapH;

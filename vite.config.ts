@@ -1,23 +1,28 @@
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
-    return {
-      server: {
+const host = process.env.TAURI_DEV_HOST;
+
+export default defineConfig({
+    clearScreen: false,
+    server: {
         port: 3000,
-        host: '0.0.0.0',
-      },
-      plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
-      resolve: {
+        strictPort: true,
+        host: host || '127.0.0.1',
+        hmr: host ? { protocol: 'ws', host, port: 3001 } : undefined,
+        watch: { ignored: ['**/src-tauri/**'] },
+    },
+    plugins: [react()],
+    build: {
+        target: ['es2021', 'safari14'],
+    },
+    resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+          // The editor uses geometry only. PaperScript's compiler requires eval,
+          // which is intentionally unavailable under the desktop CSP.
+          'paper': path.resolve(__dirname, 'node_modules/paper/dist/paper-core.js'),
         }
-      }
-    };
+    }
 });

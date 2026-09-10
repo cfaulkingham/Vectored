@@ -1,20 +1,6 @@
 
 
 /**
- * Triggers a file download in the browser by creating a temporary anchor element.
- * @param href - The URL of the resource to download (often a Blob URL).
- * @param downloadName - The suggested filename for the download.
- */
-export function triggerDownload(href: string, downloadName: string) {
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = downloadName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
-
-/**
  * A seeded pseudo-random number generator (PRNG) using the Mulberry32 algorithm.
  * Useful for creating deterministic patterns based on a seed.
  * @param a - The seed value.

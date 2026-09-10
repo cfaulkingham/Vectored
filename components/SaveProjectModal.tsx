@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showFileError } from '../lib/file-io';
 
 /**
  * Props for the SaveProjectModal component.
@@ -10,7 +11,7 @@ import React, { useState, useEffect } from 'react';
 interface SaveProjectModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (filename: string) => void;
+    onSave: (filename: string) => Promise<void>;
     initialFilename: string;
 }
 
@@ -23,6 +24,7 @@ interface SaveProjectModalProps {
  */
 const SaveProjectModal: React.FC<SaveProjectModalProps> = ({ isOpen, onClose, onSave, initialFilename }) => {
     const [filename, setFilename] = useState(initialFilename);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -32,9 +34,15 @@ const SaveProjectModal: React.FC<SaveProjectModalProps> = ({ isOpen, onClose, on
 
     if (!isOpen) return null;
 
-    const handleSave = () => {
-        if (filename.trim()) {
-            onSave(filename.trim());
+    const handleSave = async () => {
+        if (!filename.trim() || isSaving) return;
+        setIsSaving(true);
+        try {
+            await onSave(filename.trim());
+        } catch (error) {
+            await showFileError('Could not save the project.', error);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -45,11 +53,11 @@ const SaveProjectModal: React.FC<SaveProjectModalProps> = ({ isOpen, onClose, on
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={isSaving ? undefined : onClose}>
             <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md text-gray-200" onClick={e => e.stopPropagation()}>
                 <header className="flex items-center justify-between p-4 border-b border-gray-700">
                     <h2 className="text-xl font-bold">Save Project</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                    <button onClick={onClose} disabled={isSaving} className="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
                 </header>
                 
                 <main className="p-6 space-y-4">
@@ -59,7 +67,8 @@ const SaveProjectModal: React.FC<SaveProjectModalProps> = ({ isOpen, onClose, on
                             <input 
                                 id="filename-save-modal" 
                                 type="text" 
-                                value={filename} 
+                                value={filename}
+                                disabled={isSaving}
                                 onChange={(e) => setFilename(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 className="w-full bg-gray-700 rounded-lg p-2 pr-12 text-white font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500" 
@@ -73,8 +82,8 @@ const SaveProjectModal: React.FC<SaveProjectModalProps> = ({ isOpen, onClose, on
                 </main>
 
                 <footer className="flex justify-end p-4 bg-gray-900/50 border-t border-gray-700 space-x-3">
-                    <button onClick={onClose} className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold transition-colors">Cancel</button>
-                    <button onClick={handleSave} className="px-6 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors">Save</button>
+                    <button onClick={onClose} disabled={isSaving} className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-semibold transition-colors disabled:opacity-50">Cancel</button>
+                    <button onClick={handleSave} disabled={isSaving || !filename.trim()} className="px-6 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors disabled:opacity-50">{isSaving ? 'Saving...' : 'Save'}</button>
                 </footer>
             </div>
         </div>

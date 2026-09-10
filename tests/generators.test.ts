@@ -3,8 +3,27 @@ import { generateSpirograph, generateGuilloche } from '../lib/generators/geometr
 import { generateLivingHinge, generateBoxJoint } from '../lib/generators/fabrication';
 import type { GeneratorContext } from '../lib/generators/utils';
 import type { LayerSettings } from '../types';
+import { generateRoseCurve } from '../lib/generators/geometric';
+import { generateVoronoi } from '../lib/generators/distribution';
 
 describe('Generators & Pattern Engines', () => {
+    it('generates rose curves with bundled D3 and no browser global', () => {
+        const result = generateRoseCurve({
+            settings: { roseN: 3, roseD: 2, roseKMax: 360 } as LayerSettings,
+            bounds: { x: 0, y: 0, width: 100, height: 100 }, random: () => 0.5, densityMap: undefined,
+        });
+        expect(result && 'paths' in result && result.paths[0]).toMatch(/^M/);
+    });
+
+    it('generates Voronoi cells with bundled D3 and no browser global', () => {
+        const result = generateVoronoi({
+            settings: {} as LayerSettings,
+            bounds: { x: 0, y: 0, width: 100, height: 100 },
+            points: [[20, 20], [80, 80]], random: () => 0.5, densityMap: undefined,
+        });
+        expect(result && 'paths' in result && result.paths.length).toBe(2);
+    });
+
     const mockContext: GeneratorContext = {
         settings: {
             patternType: 'none',

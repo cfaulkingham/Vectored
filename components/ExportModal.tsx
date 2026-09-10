@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
+import { showFileError } from '../lib/file-io';
 
 interface ExportModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onExportSVG: () => void;
-    onExportPNG: () => void;
-    onExportPDF: () => void;
-    onExportDXF: () => void;
+    onExportSVG: () => Promise<boolean>;
+    onExportPNG: () => Promise<boolean>;
+    onExportPDF: () => Promise<boolean>;
+    onExportDXF: () => Promise<boolean>;
     pngExportScale: number;
     onPngExportScaleChange: (value: number) => void;
     filename: string;
@@ -34,22 +35,22 @@ const ExportModal: React.FC<ExportModalProps> = (props) => {
     const handleExport = async () => {
         setIsExporting(true);
         try {
+            let saved = false;
             switch (exportType) {
-                case 'svg': await onExportSVG(); break;
-                case 'png': await onExportPNG(); break;
-                case 'pdf': await onExportPDF(); break;
-                case 'dxf': await onExportDXF(); break;
+                case 'svg': saved = await onExportSVG(); break;
+                case 'png': saved = await onExportPNG(); break;
+                case 'pdf': saved = await onExportPDF(); break;
+                case 'dxf': saved = await onExportDXF(); break;
             }
-            onClose();
+            if (saved) onClose();
         } catch (error) {
-            console.error('Export failed:', error);
-            alert('Export failed. Please check your network connection.');
+            await showFileError('Could not export the file.', error);
         } finally {
             setIsExporting(false);
         }
     };
     
-    const exportButtonText = isExporting ? 'Preparing Export...' : `Download ${exportType.toUpperCase()}`;
+    const exportButtonText = isExporting ? 'Saving...' : `Save ${exportType.toUpperCase()}`;
     const showAdvancedOptions = exportType === 'png';
 
     return (

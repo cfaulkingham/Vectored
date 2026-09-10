@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useEditor } from '../context/EditorContext';
+import { isTauri } from '@tauri-apps/api/core';
+import { openProjectFile, showFileError } from '../lib/file-io';
 import { 
     ExportIcon, ImportIcon, PrintIcon, SettingsIcon, HelpIcon, SnapIcon, LayoutIcon,
     AlignLeftIcon, AlignCenterHIcon, AlignRightIcon, AlignTopIcon, AlignCenterVIcon, AlignBottomIcon, NestIcon,
@@ -49,6 +51,36 @@ const TopBar: React.FC = () => {
     
     const [isSnapMenuOpen, setIsSnapMenuOpen] = useState(false);
     const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(false);
+
+    const handleOpenProject = async () => {
+        if (!isTauri()) {
+            loadInputRef.current?.click();
+            return;
+        }
+        try {
+            const file = await openProjectFile();
+            if (file) await projectManager.loadProjectFile(file);
+        } catch (error) {
+            await showFileError('Could not open the project.', error);
+        }
+    };
+
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.repeat) return;
+            // Keep file commands from opening another modal over a pending operation.
+            if (document.querySelector('[role="dialog"], .fixed.inset-0')) return;
+            switch (event.key.toLowerCase()) {
+                case 'n': event.preventDefault(); handleNewProject(); break;
+                case 'o': event.preventDefault(); void handleOpenProject(); break;
+                case 's': event.preventDefault(); handleSaveProjectFile(); break;
+                case 'e': event.preventDefault(); setIsExportModalOpen(true); break;
+                case 'i': event.preventDefault(); importSvgRef.current?.click(); break;
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    });
 
     // Close menus on outside click
     useEffect(() => {
@@ -222,7 +254,7 @@ const TopBar: React.FC = () => {
                     <button onClick={handleNewProject} className={iconButtonClass} title="New Project (Ctrl+N)">
                         <NewFileIcon />
                     </button>
-                    <button onClick={() => loadInputRef.current?.click()} className={iconButtonClass} title="Open Project (Ctrl+O)">
+                    <button onClick={handleOpenProject} className={iconButtonClass} title="Open Project (Ctrl+O / ⌘O)">
                         <LoadIcon />
                     </button>
                     <button onClick={handleSaveProjectFile} className={iconButtonClass} title="Save Project (Ctrl+S)">

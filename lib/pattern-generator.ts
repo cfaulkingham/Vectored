@@ -8,8 +8,7 @@ import * as organic from './generators/organic';
 import * as distribution from './generators/distribution';
 import * as maze from './generators/maze';
 
-// Declare d3 for Delaunay (used in distribution setup)
-declare const d3: any;
+import * as d3 from 'd3';
 
 interface GeneratePatternOptions {
     patternSettings: LayerSettings;

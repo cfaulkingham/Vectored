@@ -3,8 +3,7 @@ import type { Point, PrimitivePatternData } from '../../types';
 import { rotatePoint, getSmoothedPolylinePath } from '../geometry';
 import type { GeneratorContext } from './utils';
 
-// d3 required for delaunay/voronoi
-declare const d3: any;
+import * as d3 from 'd3';
 
 /**
  * Generates a Voronoi diagram pattern based on the provided points and bounds.

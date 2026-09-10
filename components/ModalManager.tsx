@@ -22,7 +22,7 @@ export const ModalManager: React.FC = () => {
     
     const {
         isNewProjectModalOpen, setIsNewProjectModalOpen, handleSaveAndNew, handleNewWithoutSaving,
-        isSaveModalOpen, setIsSaveModalOpen, handleSave, filename, setFilename,
+        isSaveModalOpen, handleCancelSave, handleSave, filename, setFilename,
         isExportModalOpen, setIsExportModalOpen, handleExportSVG, handleExportPNG, handleExportPDF, handleExportDXF,
         pngExportScale, setPngExportScale,
         includeMeasurements, setIncludeMeasurements,
@@ -44,7 +44,7 @@ export const ModalManager: React.FC = () => {
             />
             <SaveProjectModal
                 isOpen={isSaveModalOpen}
-                onClose={() => setIsSaveModalOpen(false)}
+                onClose={handleCancelSave}
                 onSave={handleSave}
                 initialFilename={filename}
             />
