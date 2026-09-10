@@ -34,7 +34,9 @@
     "category": "GraphicsAndDesign",
     "shortDescription": "Vector drawing and fabrication pattern editor",
     "licenseFile": "../LICENSE",
-    "resources": { "../LICENSE": "LICENSE" },
+    "resources": {
+      "../LICENSE": "LICENSE"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -45,6 +47,114 @@
     "macOS": {
       "minimumSystemVersion": "11.0",
       "signingIdentity": "-"
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "vectored"
+        ],
+        "name": "Vectored Project",
+        "description": "Vectored editable project",
+        "role": "Editor",
+        "rank": "Owner",
+        "mimeType": "application/x-vectored",
+        "exportedType": {
+          "identifier": "app.vectored.project",
+          "conformsTo": [
+            "public.json"
+          ]
+        }
+      },
+      {
+        "ext": [
+          "svg"
+        ],
+        "name": "SVG Image",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "image/svg+xml",
+        "contentTypes": [
+          "public.svg-image"
+        ]
+      },
+      {
+        "ext": [
+          "png"
+        ],
+        "name": "PNG Image",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "image/png",
+        "contentTypes": [
+          "public.png"
+        ]
+      },
+      {
+        "ext": [
+          "jpg",
+          "jpeg"
+        ],
+        "name": "JPEG Image",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "image/jpeg",
+        "contentTypes": [
+          "public.jpeg"
+        ]
+      },
+      {
+        "ext": [
+          "webp"
+        ],
+        "name": "WebP Image",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "image/webp",
+        "contentTypes": [
+          "org.webmproject.webp"
+        ]
+      },
+      {
+        "ext": [
+          "gif"
+        ],
+        "name": "GIF Image",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "image/gif",
+        "contentTypes": [
+          "com.compuserve.gif"
+        ]
+      },
+      {
+        "ext": [
+          "bmp"
+        ],
+        "name": "Bitmap Image",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "image/bmp",
+        "contentTypes": [
+          "com.microsoft.bmp"
+        ]
+      }
+    ],
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/share/mime/packages/vectored.xml": "mime/vectored.xml"
+        }
+      },
+      "rpm": {
+        "files": {
+          "/usr/share/mime/packages/vectored.xml": "mime/vectored.xml"
+        }
+      },
+      "appimage": {
+        "files": {
+          "/usr/share/mime/packages/vectored.xml": "mime/vectored.xml"
+        }
+      }
     }
   }
 }

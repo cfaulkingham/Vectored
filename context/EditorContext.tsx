@@ -247,7 +247,6 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setAppState,
         reset,
         createInitialState,
-        canUndo,
         setDensityImages,
         setInteraction,
         setSelectedObjectInfo,

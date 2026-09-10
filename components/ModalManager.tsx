@@ -1,6 +1,6 @@
 import React from 'react';
 import ExportModal from './ExportModal';
-import NewProjectModal from './NewProjectModal';
+import UnsavedChangesModal from './UnsavedChangesModal';
 import SaveProjectModal from './SaveProjectModal';
 import CanvasSettingsModal from './CanvasSettingsModal';
 import ImportModal from './ImportModal';
@@ -21,14 +21,14 @@ export const ModalManager: React.FC = () => {
     } = useEditor();
     
     const {
-        isNewProjectModalOpen, setIsNewProjectModalOpen, handleSaveAndNew, handleNewWithoutSaving,
+        unsavedAction, resolveUnsaved,
         isSaveModalOpen, handleCancelSave, handleSave, filename, setFilename,
         isExportModalOpen, setIsExportModalOpen, handleExportSVG, handleExportPNG, handleExportPDF, handleExportDXF,
         pngExportScale, setPngExportScale,
         includeMeasurements, setIncludeMeasurements,
         isCanvasSettingsModalOpen, setIsCanvasSettingsModalOpen,
         isNewProjectSettingsOpen, setIsNewProjectSettingsOpen, handleCreateProject,
-        isImportModalOpen, setIsImportModalOpen, handleConfirmImport, pendingImport,
+        isImportModalOpen, setIsImportModalOpen, isImporting, handleConfirmImport, pendingImport,
         isHelpModalOpen, setIsHelpModalOpen,
         isNestingModalOpen, setIsNestingModalOpen, handleApplyNesting,
         isTraceModalOpen, setIsTraceModalOpen, imageToTrace, handleApplyTrace,
@@ -36,12 +36,7 @@ export const ModalManager: React.FC = () => {
 
     return (
         <>
-            <NewProjectModal
-                isOpen={isNewProjectModalOpen}
-                onClose={() => setIsNewProjectModalOpen(false)}
-                onSaveAndNew={handleSaveAndNew}
-                onNewWithoutSaving={handleNewWithoutSaving}
-            />
+            <UnsavedChangesModal action={unsavedAction} filename={filename} onDecision={resolveUnsaved} />
             <SaveProjectModal
                 isOpen={isSaveModalOpen}
                 onClose={handleCancelSave}
@@ -83,6 +78,7 @@ export const ModalManager: React.FC = () => {
             />
             <ImportModal
                 isOpen={isImportModalOpen}
+                isImporting={isImporting}
                 onClose={() => setIsImportModalOpen(false)}
                 onConfirm={handleConfirmImport}
                 layers={appState.layers}

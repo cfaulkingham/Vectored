@@ -1,7 +1,11 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { useDocumentLifecycle } from './useDocumentLifecycle';
+import { useDesktopIntegration } from './useDesktopIntegration';
+import { fileKind, parseProject, projectName } from '../lib/project-format';
 import { produce } from 'immer';
-import { saveFile, showFileError } from '../lib/file-io';
+import { chooseOpenFile, saveFile, showFileError, type OpenedFile } from '../lib/file-io';
 import { renderSVGToCanvas, canvasToPNG } from '../lib/raster-export';
 import { parseSVG } from '../lib/svg-parser';
 import { sanitizeFontFaces } from '../lib/safe-svg-parser';
@@ -22,8 +26,6 @@ interface UseProjectManagerProps {
     reset: (state: AppState) => void;
     /** Function to create a fresh initial state */
     createInitialState: (dimensions?: { width: number, height: number }) => AppState;
-    /** Whether undo action is available */
-    canUndo: boolean;
     /** Setter for density images registry */
     setDensityImages: React.Dispatch<React.SetStateAction<Record<string, HTMLImageElement>>>;
     /** Setter for interaction state */
@@ -44,7 +46,7 @@ interface UseProjectManagerProps {
 
 /**
  * Custom hook for managing project lifecycle events and high-level file operations.
- * Handles New Project workflows, Saving/Loading JSON, Importing files (SVG/Image), 
+ * Handles New Project workflows, Saving/Loading Vectored projects, Importing files (SVG/Image),
  * Exporting (SVG, PNG, PDF, DXF), Printing, and Clearing the canvas.
  * Manages the visibility state of various project-level modals.
  *
@@ -56,7 +58,6 @@ export const useProjectManager = ({
     setAppState,
     reset,
     createInitialState,
-    canUndo,
     setDensityImages,
     setInteraction,
     setSelectedObjectInfo,
@@ -68,21 +69,21 @@ export const useProjectManager = ({
 }: UseProjectManagerProps) => {
 
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-    const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
     const [isNewProjectSettingsOpen, setIsNewProjectSettingsOpen] = useState(false);
-    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isCanvasSettingsModalOpen, setIsCanvasSettingsModalOpen] = useState(false);
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const [isNestingModalOpen, setIsNestingModalOpen] = useState(false);
-    const [filename, setFilename] = useState('pattern');
+    const documentLifecycle = useDocumentLifecycle(appState, units);
+    const { filename, setFilename, runGuarded, markClean } = documentLifecycle;
     const [isTraceModalOpen, setIsTraceModalOpen] = useState(false);
     const [imageToTrace, setImageToTrace] = useState<ImageObject | null>(null);
     const [isExportInverted, setIsExportInverted] = useState(false);
     const [includeMeasurements, setIncludeMeasurements] = useState(true);
     const [pngExportScale, setPngExportScale] = useState(4);
-    const [nextAction, setNextAction] = useState<(() => void) | null>(null);
     
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
+    const importing = useRef(false);
     const [pendingImport, setPendingImport] = useState<{
         type: 'svg' | 'image';
         content: string; 
@@ -126,130 +127,102 @@ export const useProjectManager = ({
         }
     }, [appState, filename, units, includeMeasurements]);
 
-    /**
-     * Initiates the new project flow. Checks for unsaved work if applicable.
-     */
-    const handleNewProject = useCallback(() => {
-        if (canUndo) {
-            setIsNewProjectModalOpen(true);
-        } else {
-            setIsNewProjectSettingsOpen(true);
-        }
-    }, [canUndo]);
+    const resetEditor = (state: AppState) => {
+        reset(state);
+        setInteraction({ mode: 'idle' });
+        setSelectedObjectInfo(null);
+        setEditingMode('shape');
+        setPendingImport(null);
+        setIsImportModalOpen(false);
+        setIsTraceModalOpen(false);
+        setImageToTrace(null);
+    };
 
-    /**
-     * Creates a new project with specified dimensions and units.
-     */
-    const handleCreateProject = (config: { width: number, height: number, clipToCanvas?: boolean }, units: Units) => {
-        setUnits(units);
-        reset(createInitialState(config));
+    const handleNewProject = useCallback(() => {
+        void runGuarded('creating a new project', () => setIsNewProjectSettingsOpen(true));
+    }, [runGuarded]);
+
+    const handleCreateProject = (config: { width: number, height: number, clipToCanvas?: boolean }, nextUnits: Units) => {
+        const state = createInitialState(config);
+        setUnits(nextUnits);
+        resetEditor(state);
+        setDensityImages({});
+        markClean(state, nextUnits, 'Untitled', null);
         setIsNewProjectSettingsOpen(false);
     };
 
-    /**
-     * Flow for saving the current project before creating a new one.
-     */
-    const handleSaveAndNew = () => {
-        setIsNewProjectModalOpen(false);
-        setNextAction(() => () => {
-            setIsNewProjectSettingsOpen(true);
-        });
-        setIsSaveModalOpen(true);
-    };
-
-    /**
-     * Discards changes and proceeds to create a new project.
-     */
-    const handleNewWithoutSaving = () => {
-        setIsNewProjectModalOpen(false);
-        setIsNewProjectSettingsOpen(true);
-    };
-
-    /**
-     * Opens the save modal.
-     */
-    const handleSaveProjectFile = useCallback(() => {
-        setIsSaveModalOpen(true);
-    }, []);
-
-    /**
-     * Saves the current project state as a JSON file.
-     */
-    const handleSave = async (newFilename: string) => {
-        const projectData = {
-            layers: appState.layers,
-            activeLayerId: appState.activeLayerId,
-            canvasConfig: appState.canvasConfig,
-            guides: appState.guides || [], // Ensure guides are saved, default to empty
-        };
-        const jsonString = JSON.stringify(projectData, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        if (!await saveFile(blob, `${newFilename}.json`)) return;
-        setIsSaveModalOpen(false);
-        setFilename(newFilename);
-        if (nextAction) {
-            nextAction();
-            setNextAction(null);
-        }
-    };
-
-    /**
-     * Loads a project from a JSON file.
-     */
-    const loadProjectFile = async (file: File) => {
+    const loadProjectFile = async (file: File, path: string | null = null) => {
         try {
-            const projectData = JSON.parse(await file.text()) as AppState;
-            if (!Array.isArray(projectData.layers) || !projectData.canvasConfig) {
-                throw new Error('Invalid project file.');
-            }
-            projectData.guides ||= [];
-            projectData.layers.forEach(layer => {
-                layer.objects ||= [];
-                layer.points ||= [];
-            });
-
+            // Validate before offering to replace a working document.
+            const { state, units: nextUnits } = parseProject(await file.text());
             const urls = new Set<string>();
-            projectData.layers.forEach(layer => {
+            state.layers.forEach(layer => {
                 if (layer.settings.densityImageURL) urls.add(layer.settings.densityImageURL);
             });
             const images: Record<string, HTMLImageElement> = {};
             await Promise.all([...urls].map(url => new Promise<void>(resolve => {
                 const image = new Image();
-                image.onload = () => { images[url] = image; resolve(); };
-                image.onerror = () => resolve();
+                const timeout = setTimeout(resolve, 5000);
+                image.onload = () => { clearTimeout(timeout); images[url] = image; resolve(); };
+                image.onerror = () => { clearTimeout(timeout); resolve(); };
                 image.src = url;
             })));
-            reset(projectData);
-            setDensityImages(images);
-            setFilename(file.name.replace(/\.[^/.]+$/, ''));
+            await runGuarded('opening another project', () => {
+                resetEditor(state);
+                setDensityImages(images);
+                setUnits(nextUnits);
+                markClean(state, nextUnits, projectName(file.name), path);
+            });
         } catch (error) {
             await showFileError('Could not open the project.', error);
+        }
+    };
+
+    const openSelectedFile = async ({ file, path }: OpenedFile) => {
+        const kind = fileKind(file.name);
+        if (kind === 'project') await loadProjectFile(file, path);
+        else if (kind) await handleInitiateImport(file, kind);
+        else await showFileError('Could not open the file.', new Error('Unsupported file format.'));
+    };
+
+    const choosingFile = useRef(false);
+    const handleOpenNative = async () => {
+        if (choosingFile.current) return;
+        choosingFile.current = true;
+        try {
+            const selected = await chooseOpenFile();
+            if (selected) await openSelectedFile(selected);
+        } catch (error) {
+            await showFileError('Could not open the file.', error);
+        } finally {
+            choosingFile.current = false;
         }
     };
 
     const handleFileSelectedForLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         e.target.value = '';
-        if (file) void loadProjectFile(file);
+        if (file) void openSelectedFile({ file, path: null });
     };
 
     /**
      * Reads a file for import (SVG or Image) and opens the import modal.
      */
-    const handleInitiateImport = (file: File, type: 'svg' | 'image', point?: Point) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const content = event.target?.result as string;
-            if (content) {
-                setPendingImport({ type, content, point });
-                setIsImportModalOpen(true);
-            }
-        };
-        if (type === 'svg') {
-            reader.readAsText(file);
-        } else {
-            reader.readAsDataURL(file);
-        }
+    const handleInitiateImport = (file: File, type: 'svg' | 'image', point?: Point): Promise<void> => {
+        return new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const content = reader.result as string;
+                if (content) {
+                    setPendingImport({ type, content, point });
+                    setIsImportModalOpen(true);
+                }
+                resolve();
+            };
+            reader.onerror = () => { void showFileError('Could not import the file.', reader.error); resolve(); };
+            if (type === 'svg') reader.readAsText(file);
+            else reader.readAsDataURL(file);
+        });
     };
 
     /**
@@ -257,193 +230,206 @@ export const useProjectManager = ({
      * Parses SVG content or creates an Image object.
      * Applies scaling (fit to canvas or original size) and optional mirroring.
      */
-    const handleConfirmImport = (layerId: string, scaleMode: 'original' | 'fit') => {
-        if (!pendingImport) return;
+    const handleConfirmImport = async (layerId: string, scaleMode: 'original' | 'fit') => {
+        if (!pendingImport || importing.current) return;
+        importing.current = true;
+        setIsImporting(true);
+        try {
         
-        const { type, content, point } = pendingImport;
-        const { width: canvasWidth, height: canvasHeight } = appState.canvasConfig;
+            const { type, content, point } = pendingImport;
+            const { width: canvasWidth, height: canvasHeight } = appState.canvasConfig;
 
-        if (type === 'image') {
-            const img = new Image();
-            img.onload = () => {
-                const { naturalWidth, naturalHeight } = img;
-                let width = naturalWidth;
-                let height = naturalHeight;
-                let x = 0;
-                let y = 0;
+            if (type === 'image') {
+                await new Promise<void>((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const { naturalWidth, naturalHeight } = img;
+                        let width = naturalWidth;
+                        let height = naturalHeight;
+                        let x = 0;
+                        let y = 0;
 
-                if (scaleMode === 'fit') {
-                    const scale = Math.min(canvasWidth / naturalWidth, canvasHeight / naturalHeight) * 0.8; 
-                    width = naturalWidth * scale;
-                    height = naturalHeight * scale;
-                    x = (canvasWidth - width) / 2;
-                    y = (canvasHeight - height) / 2;
-                } else {
-                    if (point) {
-                        x = point[0] - width / 2;
-                        y = point[1] - height / 2;
-                    } else {
-                        x = (canvasWidth - width) / 2;
-                        y = (canvasHeight - height) / 2;
-                    }
-                }
-
-                const newImageObject: ImageObject = {
-                    id: String(Date.now()),
-                    type: 'image',
-                    href: content,
-                    x, y, width, height,
-                    rotation: 0,
-                    skewX: 0, skewY: 0,
-                    fill: 'none',
-                    stroke: 'none',
-                    strokeWidth: 0,
-                    opacity: 1,
-                    fillOpacity: 1,
-                    strokeOpacity: 1,
-                    blendMode: 'normal'
-                };
-
-                const objectsToAdd: VectorObject[] = [newImageObject];
-                const idsToSelect = [newImageObject.id];
-
-                if (mirrorMode !== 'off') {
-                    const mirroredObject = applyMirrorToObject(newImageObject, mirrorMode, mirrorGap, canvasWidth, canvasHeight);
-                    mirroredObject.id = `mirror-${newImageObject.id}`;
-                    objectsToAdd.push(mirroredObject);
-                    idsToSelect.push(mirroredObject.id);
-                }
-
-                setAppState(produce(draft => {
-                    const layer = draft.layers.find(l => l.id === layerId);
-                    if (layer) {
-                        layer.objects.push(...objectsToAdd);
-                    }
-                }));
-                
-                setSelectedObjectInfo({ layerId, objectIds: idsToSelect });
-                setInteraction({ mode: 'idle' });
-            };
-            img.src = content;
-        } else if (type === 'svg') {
-            try {
-                const { elements, fontFaces } = parseSVG(content);
-                
-                const fontFamilies = new Set<string>();
-                if (fontFaces && fontFaces.length > 0) {
-                    const styleId = 'imported-svg-fonts';
-                    let styleElement = document.getElementById(styleId) as HTMLStyleElement | null;
-                    if (!styleElement) {
-                        styleElement = document.createElement('style');
-                        styleElement.id = styleId;
-                        document.head.appendChild(styleElement);
-                    }
-                    const existingFontFaces = styleElement.textContent || '';
-                    const sanitizedFontFaces = fontFaces.map(ff => sanitizeFontFaces(ff)).filter(Boolean);
-                    const newFontFaces = sanitizedFontFaces.filter(ff => !existingFontFaces.includes(ff));
-                    if (newFontFaces.length > 0) {
-                        styleElement.textContent += '\n' + newFontFaces.join('\n');
-                        const fontFamilyRegex = /font-family:\s*([^;]+);?/;
-                        newFontFaces.forEach(ff => {
-                            const match = ff.match(fontFamilyRegex);
-                            if (match && match[1]) {
-                                const name = match[1].split(',')[0].replace(/['"]/g, '').trim();
-                                if (name) fontFamilies.add(name);
+                        if (scaleMode === 'fit') {
+                            const scale = Math.min(canvasWidth / naturalWidth, canvasHeight / naturalHeight) * 0.8;
+                            width = naturalWidth * scale;
+                            height = naturalHeight * scale;
+                            x = (canvasWidth - width) / 2;
+                            y = (canvasHeight - height) / 2;
+                        } else {
+                            if (point) {
+                                x = point[0] - width / 2;
+                                y = point[1] - height / 2;
+                            } else {
+                                x = (canvasWidth - width) / 2;
+                                y = (canvasHeight - height) / 2;
                             }
-                        });
-                    }
-                }
-                
-                const fontPromises = Array.from(fontFamilies).map(font => document.fonts.load(`1em "${font}"`));
-                
-                Promise.all(fontPromises).catch(err => console.warn("Some fonts failed to load", err)).then(() => {
-                    let newObjects: VectorObject[] = elements.map((el, i) => {
-                        if (el.type === 'path') {
-                            const bounds = calculateGenericPathBounds(el.d);
-                            return {
-                                id: String(Date.now() + i + Math.random()),
-                                type: 'generic-path',
-                                d: el.d,
-                                ...bounds,
-                                rotation: 0, skewX: 0, skewY: 0,
-                                fill: el.fill, stroke: el.stroke, strokeWidth: el.strokeWidth,
-                                opacity: el.opacity, fillOpacity: el.fillOpacity, strokeOpacity: el.strokeOpacity, blendMode: el.blendMode,
-                                strokeLinecap: el.strokeLinecap, strokeLinejoin: el.strokeLinejoin, strokeDasharray: el.strokeDasharray, strokeDashoffset: el.strokeDashoffset
-                            } as GenericPathObject;
                         }
-                        if (el.type === 'text') {
-                            const textEl = el as ParsedTextElement;
-                            const { width, height } = (textEl.width != null && textEl.height != null)
-                                ? { width: textEl.width, height: textEl.height }
-                                : measureText(textEl.text, textEl.fontSize, textEl.fontFamily, textEl.fontWeight);
-                            return {
-                                id: String(Date.now() + i + Math.random()),
-                                type: 'text',
-                                text: textEl.text,
-                                x: textEl.x, y: textEl.y, width, height,
-                                fontSize: textEl.fontSize, fontFamily: textEl.fontFamily, fontWeight: textEl.fontWeight,
-                                rotation: 0, skewX: 0, skewY: 0,
-                                fill: textEl.fill, stroke: textEl.stroke, strokeWidth: textEl.strokeWidth,
-                                opacity: textEl.opacity, fillOpacity: textEl.fillOpacity, strokeOpacity: textEl.strokeOpacity, blendMode: textEl.blendMode,
-                                isForeignObject: textEl.isForeignObject, textAlign: textEl.textAlign, verticalAlign: textEl.verticalAlign, backgroundColor: textEl.backgroundColor
-                            } as TextObject;
-                        }
-                        if (el.type === 'image') {
-                            return {
-                                id: String(Date.now() + i + Math.random()),
-                                type: 'image',
-                                href: el.href,
-                                x: el.x, y: el.y, width: el.width, height: el.height,
-                                rotation: 0, skewX: 0, skewY: 0,
-                                fill: 'none', stroke: 'none', strokeWidth: 0,
-                                opacity: el.opacity, fillOpacity: el.fillOpacity, strokeOpacity: el.strokeOpacity, blendMode: el.blendMode,
-                            } as ImageObject;
-                        }
-                        return null;
-                    }).filter(Boolean) as VectorObject[];
 
-                    if (scaleMode === 'fit') {
-                        const bounds = calculateGroupBounds(newObjects);
-                        if (bounds.width > 0 && bounds.height > 0) {
-                            const scale = Math.min(canvasWidth / bounds.width, canvasHeight / bounds.height) * 0.8;
-                            const centerX = (canvasWidth - bounds.width * scale) / 2;
-                            const centerY = (canvasHeight - bounds.height * scale) / 2;
-                            
-                            const matrix = new DOMMatrix();
-                            matrix.translateSelf(centerX, centerY);
-                            matrix.scaleSelf(scale, scale);
-                            matrix.translateSelf(-bounds.x, -bounds.y);
+                        const newImageObject: ImageObject = {
+                            id: String(Date.now()),
+                            type: 'image',
+                            href: content,
+                            x, y, width, height,
+                            rotation: 0,
+                            skewX: 0, skewY: 0,
+                            fill: 'none',
+                            stroke: 'none',
+                            strokeWidth: 0,
+                            opacity: 1,
+                            fillOpacity: 1,
+                            strokeOpacity: 1,
+                            blendMode: 'normal'
+                        };
 
-                            newObjects.forEach(obj => {
-                                if (obj.type === 'generic-path' || obj.type === 'text' || obj.type === 'image') {
-                                    const newPos = transformPoint([obj.x, obj.y], matrix);
-                                    obj.x = newPos[0];
-                                    obj.y = newPos[1];
-                                    obj.width *= scale;
-                                    obj.height *= scale;
-                                    if (obj.type === 'text') {
-                                        (obj as TextObject).fontSize *= scale;
-                                    }
+                        const objectsToAdd: VectorObject[] = [newImageObject];
+                        const idsToSelect = [newImageObject.id];
+
+                        if (mirrorMode !== 'off') {
+                            const mirroredObject = applyMirrorToObject(newImageObject, mirrorMode, mirrorGap, canvasWidth, canvasHeight);
+                            mirroredObject.id = `mirror-${newImageObject.id}`;
+                            objectsToAdd.push(mirroredObject);
+                            idsToSelect.push(mirroredObject.id);
+                        }
+
+                        setAppState(produce(draft => {
+                            const layer = draft.layers.find(l => l.id === layerId);
+                            if (layer) {
+                                layer.objects.push(...objectsToAdd);
+                            }
+                        }));
+                
+                        setSelectedObjectInfo({ layerId, objectIds: idsToSelect });
+                        setInteraction({ mode: 'idle' });
+                        resolve();
+                    };
+                    img.onerror = () => reject(new Error('This image could not be decoded.'));
+                    img.src = content;
+                });
+            } else if (type === 'svg') {
+                try {
+                    const { elements, fontFaces } = parseSVG(content);
+                
+                    const fontFamilies = new Set<string>();
+                    if (fontFaces && fontFaces.length > 0) {
+                        const styleId = 'imported-svg-fonts';
+                        let styleElement = document.getElementById(styleId) as HTMLStyleElement | null;
+                        if (!styleElement) {
+                            styleElement = document.createElement('style');
+                            styleElement.id = styleId;
+                            document.head.appendChild(styleElement);
+                        }
+                        const existingFontFaces = styleElement.textContent || '';
+                        const sanitizedFontFaces = fontFaces.map(ff => sanitizeFontFaces(ff)).filter(Boolean);
+                        const newFontFaces = sanitizedFontFaces.filter(ff => !existingFontFaces.includes(ff));
+                        if (newFontFaces.length > 0) {
+                            styleElement.textContent += '\n' + newFontFaces.join('\n');
+                            const fontFamilyRegex = /font-family:\s*([^;]+);?/;
+                            newFontFaces.forEach(ff => {
+                                const match = ff.match(fontFamilyRegex);
+                                if (match && match[1]) {
+                                    const name = match[1].split(',')[0].replace(/['"]/g, '').trim();
+                                    if (name) fontFamilies.add(name);
                                 }
                             });
                         }
                     }
 
-                    setAppState(produce(draft => {
-                        const layer = draft.layers.find(l => l.id === layerId);
-                        if (layer) {
-                            layer.objects.push(...newObjects);
+                    const fontPromises = Array.from(fontFamilies).map(font => document.fonts.load(`1em "${font}"`));
+
+                    await Promise.all(fontPromises).catch(err => console.warn("Some fonts failed to load", err)).then(() => {
+                        let newObjects: VectorObject[] = elements.map((el, i) => {
+                            if (el.type === 'path') {
+                                const bounds = calculateGenericPathBounds(el.d);
+                                return {
+                                    id: String(Date.now() + i + Math.random()),
+                                    type: 'generic-path',
+                                    d: el.d,
+                                    ...bounds,
+                                    rotation: 0, skewX: 0, skewY: 0,
+                                    fill: el.fill, stroke: el.stroke, strokeWidth: el.strokeWidth,
+                                    opacity: el.opacity, fillOpacity: el.fillOpacity, strokeOpacity: el.strokeOpacity, blendMode: el.blendMode,
+                                    strokeLinecap: el.strokeLinecap, strokeLinejoin: el.strokeLinejoin, strokeDasharray: el.strokeDasharray, strokeDashoffset: el.strokeDashoffset
+                                } as GenericPathObject;
+                            }
+                            if (el.type === 'text') {
+                                const textEl = el as ParsedTextElement;
+                                const { width, height } = (textEl.width != null && textEl.height != null)
+                                    ? { width: textEl.width, height: textEl.height }
+                                    : measureText(textEl.text, textEl.fontSize, textEl.fontFamily, textEl.fontWeight);
+                                return {
+                                    id: String(Date.now() + i + Math.random()),
+                                    type: 'text',
+                                    text: textEl.text,
+                                    x: textEl.x, y: textEl.y, width, height,
+                                    fontSize: textEl.fontSize, fontFamily: textEl.fontFamily, fontWeight: textEl.fontWeight,
+                                    rotation: 0, skewX: 0, skewY: 0,
+                                    fill: textEl.fill, stroke: textEl.stroke, strokeWidth: textEl.strokeWidth,
+                                    opacity: textEl.opacity, fillOpacity: textEl.fillOpacity, strokeOpacity: textEl.strokeOpacity, blendMode: textEl.blendMode,
+                                    isForeignObject: textEl.isForeignObject, textAlign: textEl.textAlign, verticalAlign: textEl.verticalAlign, backgroundColor: textEl.backgroundColor
+                                } as TextObject;
+                            }
+                            if (el.type === 'image') {
+                                return {
+                                    id: String(Date.now() + i + Math.random()),
+                                    type: 'image',
+                                    href: el.href,
+                                    x: el.x, y: el.y, width: el.width, height: el.height,
+                                    rotation: 0, skewX: 0, skewY: 0,
+                                    fill: 'none', stroke: 'none', strokeWidth: 0,
+                                    opacity: el.opacity, fillOpacity: el.fillOpacity, strokeOpacity: el.strokeOpacity, blendMode: el.blendMode,
+                                } as ImageObject;
+                            }
+                            return null;
+                        }).filter(Boolean) as VectorObject[];
+
+                        if (scaleMode === 'fit') {
+                            const bounds = calculateGroupBounds(newObjects);
+                            if (bounds.width > 0 && bounds.height > 0) {
+                                const scale = Math.min(canvasWidth / bounds.width, canvasHeight / bounds.height) * 0.8;
+                                const centerX = (canvasWidth - bounds.width * scale) / 2;
+                                const centerY = (canvasHeight - bounds.height * scale) / 2;
+
+                                const matrix = new DOMMatrix();
+                                matrix.translateSelf(centerX, centerY);
+                                matrix.scaleSelf(scale, scale);
+                                matrix.translateSelf(-bounds.x, -bounds.y);
+
+                                newObjects.forEach(obj => {
+                                    if (obj.type === 'generic-path' || obj.type === 'text' || obj.type === 'image') {
+                                        const newPos = transformPoint([obj.x, obj.y], matrix);
+                                        obj.x = newPos[0];
+                                        obj.y = newPos[1];
+                                        obj.width *= scale;
+                                        obj.height *= scale;
+                                        if (obj.type === 'text') {
+                                            (obj as TextObject).fontSize *= scale;
+                                        }
+                                    }
+                                });
+                            }
                         }
-                    }));
-                    setSelectedObjectInfo({ layerId, objectIds: newObjects.map(o => o.id) });
-                });
-            } catch (err) {
-                alert("Error importing SVG file.");
-                console.error(err);
+
+                        setAppState(produce(draft => {
+                            const layer = draft.layers.find(l => l.id === layerId);
+                            if (layer) {
+                                layer.objects.push(...newObjects);
+                            }
+                        }));
+                        setSelectedObjectInfo({ layerId, objectIds: newObjects.map(o => o.id) });
+                    });
+                } catch (err) {
+                    alert("Error importing SVG file.");
+                    console.error(err);
+                }
             }
+        } catch (error) {
+            await showFileError('Could not import the file.', error);
+        } finally {
+            importing.current = false;
+            setIsImporting(false);
+            setIsImportModalOpen(false);
+            setPendingImport(null);
         }
-        setIsImportModalOpen(false);
-        setPendingImport(null);
     };
 
     const handleInitiateTrace = useCallback((image: ImageObject) => {
@@ -685,17 +671,31 @@ export const useProjectManager = ({
       }, [setAppState, setDensityImages, setInteraction, setSelectedObjectInfo, setEditingMode]);
 
 
+    useDesktopIntegration({
+        open: openSelectedFile,
+        close: async () => {
+            if (!importing.current) await runGuarded('closing Vectored', () => invoke('finish_close'));
+        },
+        command: command => {
+            if (command === 'new') handleNewProject();
+            if (command === 'open') void handleOpenNative();
+            if (command === 'save') documentLifecycle.handleSaveProjectFile();
+            if (command === 'save-as') documentLifecycle.handleSaveAs();
+        },
+        blocked: documentLifecycle.isActionBusy || documentLifecycle.isSaving ||
+            documentLifecycle.isSaveModalOpen || isImportModalOpen || isNewProjectSettingsOpen ||
+            isExportModalOpen || isCanvasSettingsModalOpen || isTraceModalOpen || isNestingModalOpen || isHelpModalOpen,
+    });
+
     return {
         isExportModalOpen, setIsExportModalOpen,
-        isNewProjectModalOpen, setIsNewProjectModalOpen,
-        isSaveModalOpen, setIsSaveModalOpen,
-        handleCancelSave: () => { setIsSaveModalOpen(false); setNextAction(null); },
+        ...documentLifecycle,
         isCanvasSettingsModalOpen, setIsCanvasSettingsModalOpen,
         isNewProjectSettingsOpen, setIsNewProjectSettingsOpen,
         isHelpModalOpen, setIsHelpModalOpen,
         isNestingModalOpen, setIsNestingModalOpen,
         
-        isImportModalOpen, setIsImportModalOpen,
+        isImportModalOpen, setIsImportModalOpen, isImporting,
         pendingImport,
         handleInitiateImport,
         isTraceModalOpen, setIsTraceModalOpen,
@@ -709,10 +709,7 @@ export const useProjectManager = ({
         pngExportScale, setPngExportScale,
         handleNewProject,
         handleCreateProject,
-        handleSaveAndNew,
-        handleNewWithoutSaving,
-        handleSaveProjectFile,
-        handleSave,
+        handleOpenNative,
         handleFileSelectedForLoad,
         loadProjectFile,
         handleExportSVG,

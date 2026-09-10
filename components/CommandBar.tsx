@@ -47,7 +47,7 @@ export const CommandBar: React.FC = () => {
         
         // Project Actions
         { id: 'project-new', label: 'New Project', subtitle: 'Clear canvas and start fresh', icon: <NewFileIcon />, action: handleNewProject },
-        { id: 'project-save', label: 'Save Project', subtitle: 'Save as .json file', icon: <SaveIcon />, action: handleSaveProjectFile },
+        { id: 'project-save', label: 'Save Project', subtitle: 'Save as .vectored file', icon: <SaveIcon />, action: handleSaveProjectFile },
         { id: 'project-export', label: 'Export...', subtitle: 'Export to SVG, DXF, or PDF', icon: <ExportIcon />, action: () => setIsExportModalOpen(true) },
         { id: 'project-nest', label: 'Auto-Nest Objects', subtitle: 'Arrange parts for production', icon: <NestIcon />, action: () => setIsNestingModalOpen(true), disabled: !activeLayerHasObjects },
         

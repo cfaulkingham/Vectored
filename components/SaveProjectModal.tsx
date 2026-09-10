@@ -53,8 +53,8 @@ const SaveProjectModal: React.FC<SaveProjectModalProps> = ({ isOpen, onClose, on
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={isSaving ? undefined : onClose}>
-            <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md text-gray-200" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={isSaving ? undefined : onClose}>
+            <div role="dialog" aria-modal="true" aria-label="Save project" className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md text-gray-200" onClick={e => e.stopPropagation()}>
                 <header className="flex items-center justify-between p-4 border-b border-gray-700">
                     <h2 className="text-xl font-bold">Save Project</h2>
                     <button onClick={onClose} disabled={isSaving} className="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
@@ -71,12 +71,12 @@ const SaveProjectModal: React.FC<SaveProjectModalProps> = ({ isOpen, onClose, on
                                 disabled={isSaving}
                                 onChange={(e) => setFilename(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                className="w-full bg-gray-700 rounded-lg p-2 pr-12 text-white font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500" 
+                                className="w-full bg-gray-700 rounded-lg p-2 pr-28 text-white font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                 placeholder="project-name"
                                 autoFocus
                                 onFocus={(e) => e.target.select()}
                             />
-                            <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">.json</span>
+                            <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">.vectored</span>
                         </div>
                     </div>
                 </main>

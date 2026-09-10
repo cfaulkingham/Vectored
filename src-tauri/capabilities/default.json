@@ -1,8 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "The editor may open and save only files selected in native dialogs.",
-  "windows": ["main"],
+  "description": "The editor may read and write only files selected in native dialogs or explicitly opened with Vectored by the operating system.",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "dialog:allow-open",

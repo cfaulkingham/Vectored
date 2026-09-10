@@ -53,6 +53,7 @@ export const useKeyboardShortcuts = ({
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (document.querySelector('[role="dialog"], .fixed.inset-0')) return;
             const activeEl = document.activeElement;
             const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || (activeEl as HTMLElement).isContentEditable);
             if (e.key === ' ') {

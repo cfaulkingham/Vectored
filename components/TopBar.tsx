@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { isTauri } from '@tauri-apps/api/core';
-import { openProjectFile, showFileError } from '../lib/file-io';
+import { OPEN_EXTENSIONS } from '../lib/project-format';
 import { 
     ExportIcon, ImportIcon, PrintIcon, SettingsIcon, HelpIcon, SnapIcon, LayoutIcon,
     AlignLeftIcon, AlignCenterHIcon, AlignRightIcon, AlignTopIcon, AlignCenterVIcon, AlignBottomIcon, NestIcon,
@@ -35,7 +35,7 @@ const TopBar: React.FC = () => {
     } = useEditor();
 
     const { 
-        handleNewProject, handleSaveProjectFile, handleFileSelectedForLoad, 
+        handleNewProject, handleSaveProjectFile, handleSaveAs, handleFileSelectedForLoad,
         setIsExportModalOpen, setIsCanvasSettingsModalOpen, setIsHelpModalOpen,
         setIsNestingModalOpen, handlePrint
     } = projectManager;
@@ -57,20 +57,19 @@ const TopBar: React.FC = () => {
             loadInputRef.current?.click();
             return;
         }
-        try {
-            const file = await openProjectFile();
-            if (file) await projectManager.loadProjectFile(file);
-        } catch (error) {
-            await showFileError('Could not open the project.', error);
-        }
+        await projectManager.handleOpenNative();
     };
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.repeat) return;
+            if (!(event.ctrlKey || event.metaKey) || event.altKey || event.repeat) return;
             // Keep file commands from opening another modal over a pending operation.
             if (document.querySelector('[role="dialog"], .fixed.inset-0')) return;
-            switch (event.key.toLowerCase()) {
+            const key = event.key.toLowerCase();
+            if (isTauri() && ['n', 'o', 's'].includes(key)) return; // Native menu accelerators own these keys.
+            if (key === 's' && event.shiftKey) { event.preventDefault(); handleSaveAs(); return; }
+            if (event.shiftKey) return;
+            switch (key) {
                 case 'n': event.preventDefault(); handleNewProject(); break;
                 case 'o': event.preventDefault(); void handleOpenProject(); break;
                 case 's': event.preventDefault(); handleSaveProjectFile(); break;
@@ -226,7 +225,7 @@ const TopBar: React.FC = () => {
     );
 
     return (
-        <header className="flex-shrink-0 h-14 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4 z-[60] select-none relative shadow-xl glass">
+        <header className="flex-shrink-0 h-14 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-4 z-40 select-none relative shadow-xl glass">
             
             {/* Left: Branding & Project Name */}
             <div className="flex items-center gap-6">
@@ -240,11 +239,9 @@ const TopBar: React.FC = () => {
 
                 <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] leading-none mb-1">Vectored</span>
-                    <input 
-                        type="text" 
-                        defaultValue="Untitled Project" 
-                        className="bg-transparent border-none outline-none text-slate-200 font-semibold text-xs py-0 h-auto focus:text-cyan-400 transition-colors w-40 truncate"
-                    />
+                    <span className="text-slate-200 font-semibold text-xs w-40 truncate" title={projectManager.documentPath || projectManager.filename}>
+                        {projectManager.filename}{projectManager.isDirty ? ' ●' : ''}
+                    </span>
                 </div>
             </div>
 
@@ -254,12 +251,13 @@ const TopBar: React.FC = () => {
                     <button onClick={handleNewProject} className={iconButtonClass} title="New Project (Ctrl+N)">
                         <NewFileIcon />
                     </button>
-                    <button onClick={handleOpenProject} className={iconButtonClass} title="Open Project (Ctrl+O / ⌘O)">
+                    <button onClick={handleOpenProject} className={iconButtonClass} title="Open Project, SVG, or Image (Ctrl+O / ⌘O)">
                         <LoadIcon />
                     </button>
-                    <button onClick={handleSaveProjectFile} className={iconButtonClass} title="Save Project (Ctrl+S)">
+                    <button onClick={handleSaveProjectFile} className={iconButtonClass} title="Save Project (Ctrl+S / ⌘S)" disabled={projectManager.isSaving}>
                         <SaveIcon />
                     </button>
+                    <button onClick={handleSaveAs} disabled={projectManager.isSaving} className={buttonClass} title="Save As (Ctrl+Shift+S / ⇧⌘S)">Save As</button>
                     
                     <div className={separatorClass}></div>
                     
@@ -326,7 +324,7 @@ const TopBar: React.FC = () => {
                 </button>
 
                 {/* Hidden Inputs */}
-                <input type="file" accept=".json" className="hidden" ref={loadInputRef} onChange={handleFileSelectedForLoad} />
+                <input type="file" accept={OPEN_EXTENSIONS.map(extension => `.${extension}`).join(',')} className="hidden" ref={loadInputRef} onChange={handleFileSelectedForLoad} />
                 <input type="file" accept=".svg,image/svg+xml" className="hidden" ref={importSvgRef} onChange={onImportSVG} />
             </div>
 
