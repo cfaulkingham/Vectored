@@ -1,3 +1,5 @@
+![Vectored — vector drawing and fabrication patterns](docs/assets/vectored-banner.png)
+
 # Vectored
 
 A vector drawing and fabrication pattern editor built with React, Vite, and Tauri 2. The desktop app bundles the editor into a native window; it does not need a browser, Node.js, or a running web server after installation.
