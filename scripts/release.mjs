@@ -27,7 +27,8 @@ export function metadata() {
     if (process.env.GITHUB_REF_TYPE === 'tag' && process.env.GITHUB_REF_NAME !== tag) {
         throw new Error(`Git tag ${process.env.GITHUB_REF_NAME} does not match application version ${tag}`);
     }
-    return { version, tag, commit: run('git', ['rev-parse', 'HEAD']), dirty: Boolean(run('git', ['status', '--porcelain'])) };
+    const changes = run('git', ['status', '--porcelain']);
+    return { version, tag, commit: run('git', ['rev-parse', 'HEAD']), dirty: Boolean(changes), changes };
 }
 
 const formats = {
@@ -86,7 +87,14 @@ export function collect(target, bundleDirectory, outputRoot = path.join(root, 'r
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     process.chdir(root);
     const [command, requestedTarget, bundleDirectory] = process.argv.slice(2);
-    if (command === 'metadata') {
+    if (command === 'verify-clean') {
+        const info = metadata();
+        if (info.dirty) {
+            execFileSync('git', ['diff', '--stat'], { cwd: root, stdio: 'inherit' });
+            throw new Error(`Release checkout has changes:\n${info.changes}`);
+        }
+        console.log(`Clean source commit: ${info.commit}`);
+    } else if (command === 'metadata') {
         const info = metadata();
         if (process.env.GITHUB_OUTPUT) {
             appendFileSync(process.env.GITHUB_OUTPUT, `version=${info.version}\ntag=${info.tag}\n`);
@@ -108,6 +116,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         const defaultDirectory = `src-tauri/target/${target}/release/bundle`;
         collect(target, bundleDirectory || defaultDirectory);
     } else {
-        throw new Error('Usage: node scripts/release.mjs metadata | build [target] | collect <target> [bundle-directory]');
+        throw new Error('Usage: node scripts/release.mjs metadata | verify-clean | build [target] | collect <target> [bundle-directory]');
     }
 }

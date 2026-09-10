@@ -56,6 +56,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Verify clean checkout before building
+        run: node scripts/release.mjs verify-clean
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -73,6 +75,8 @@ jobs:
       - run: npm test
       - name: Build desktop installers
         run: npm run desktop:build -- --target ${{ matrix.target }} --ci -- --locked
+      - name: Verify clean checkout after building
+        run: node scripts/release.mjs verify-clean
       - name: Name artifacts and generate checksums
         run: npm run release:collect -- ${{ matrix.target }}
       - name: Upload installers
