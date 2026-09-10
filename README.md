@@ -46,7 +46,29 @@ rustup target add aarch64-apple-darwin x86_64-apple-darwin
 npm run desktop:build -- --target universal-apple-darwin
 ```
 
-The **Desktop builds** GitHub Actions workflow runs checks and produces downloadable installer artifacts for Apple Silicon, Intel Mac, Windows x64, and Linux x64. It runs on pull requests or manually from Actions. It does not publish releases. These are unsigned development builds; configure [macOS signing/notarization](https://v2.tauri.app/distribute/sign/macos/) and [Windows signing](https://v2.tauri.app/distribute/sign/windows/) before distributing trusted public installers. Choose your permanent bundle identifier in `src-tauri/tauri.conf.json` before the first public release.
+The **Desktop builds** GitHub Actions workflow runs checks and produces versioned installer artifacts for Apple Silicon, Intel Mac, Windows x64, and Linux x64. It runs on pull requests, manually from Actions, and when a version tag is pushed. Mac builds use ad-hoc signing; configure [macOS signing/notarization](https://v2.tauri.app/distribute/sign/macos/) and [Windows signing](https://v2.tauri.app/distribute/sign/windows/) for trusted public installers.
+
+## Release builds
+
+For a full local build of your computer's platform, including checks and versioned artifacts:
+
+```sh
+npm ci
+npm run release:local
+```
+
+Outputs are collected in `release/v0.1.0/<target>/`. Each filename includes the version and Rust target, and each target includes SHA-256 checksums, the MIT license, and a JSON manifest with the source commit and whether the working tree had changes. Mac releases include both a DMG and a ZIP of the app. An optional target can be passed, for example `npm run release:local -- x86_64-apple-darwin` after installing that Rust target on a Mac. Windows and Linux installers require their respective build hosts.
+
+For all platforms, run **Desktop builds** from GitHub Actions. Once the build passes, tag the same commit and push the tag:
+
+```sh
+git tag -a v0.1.0 -m "Vectored v0.1.0"
+git push origin v0.1.0
+```
+
+Tag pushes build all four targets and create a **draft GitHub release** only after every build succeeds. The workflow verifies checksums and source commits before attaching all artifacts. Review the draft in GitHub Releases and publish it when ready. Re-running a tagged build can update its draft, but cannot replace artifacts on a published release.
+
+For later releases, update the versions in `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, and `src-tauri/tauri.conf.json` before creating the next tag. The workflow rejects a tag that disagrees with the application version. Keep released tags fixed to their original commits.
 
 ## Desktop behavior
 

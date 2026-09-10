@@ -3,12 +3,35 @@ name: Desktop builds
 on:
   workflow_dispatch:
   pull_request:
+  push:
+    tags:
+      - 'v[0-9]*'
 
 permissions:
   contents: read
 
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate application version and release tag
+        id: version
+        run: node scripts/release.mjs metadata
+
   build:
+    name: Build ${{ matrix.target }}
+    needs: metadata
     strategy:
       fail-fast: false
       matrix:
@@ -39,21 +62,75 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf xdg-utils
       - run: npm ci
       - run: npm run lint
       - run: npm test
       - name: Build desktop installers
         run: npm run desktop:build -- --target ${{ matrix.target }} --ci -- --locked
+      - name: Name artifacts and generate checksums
+        run: npm run release:collect -- ${{ matrix.target }}
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
-          name: Vectored-${{ matrix.target }}
+          name: Vectored-${{ needs.metadata.outputs.tag }}-${{ matrix.target }}
           if-no-files-found: error
-          path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.msi
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.rpm
-            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
+          compression-level: 0
+          path: release/${{ needs.metadata.outputs.tag }}/${{ matrix.target }}/*
+
+  release:
+    name: Create draft release
+    if: github.ref_type == 'tag'
+    needs: [metadata, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Vectored-${{ needs.metadata.outputs.tag }}-*
+          merge-multiple: true
+          path: release-assets
+      - name: Verify all platforms and checksums
+        working-directory: release-assets
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, readdirSync } from 'node:fs';
+          const expected = new Set(['aarch64-apple-darwin', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc', 'x86_64-unknown-linux-gnu']);
+          for (const file of readdirSync('.').filter(name => name.endsWith('_build.json'))) {
+            const build = JSON.parse(readFileSync(file, 'utf8'));
+            if (!expected.delete(build.target) || build.commit !== process.env.GITHUB_SHA || build.dirty) {
+              throw new Error(`Unexpected build provenance: ${file}`);
+            }
+          }
+          if (expected.size) throw new Error(`Missing targets: ${[...expected]}`);
+          JS
+          for manifest in *_SHA256SUMS.txt; do sha256sum --check "$manifest"; done
+      - name: Attach artifacts to the tagged draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json isDraft > existing-release.json 2>/dev/null; then
+            node -e 'if (!require("./existing-release.json").isDraft) throw new Error("Refusing to replace assets on a published release")'
+          else
+            cat > release-notes.md <<NOTES
+          Vectored desktop vector drawing and fabrication pattern editor.
+
+          Installers for Apple Silicon and Intel macOS, Windows x64, and Linux x64 are attached below. Mac app ZIPs are also included.
+
+          Native project Open/Save and SVG, PNG, PDF, and DXF exports are included. Interface assets work offline; optional artwork webfonts and remote images require a connection.
+
+          Each platform includes SHA-256 checksums, its MIT license, and a build manifest identifying source commit ${GITHUB_SHA}.
+
+          These builds are not notarized or signed with commercial distribution certificates. Mac builds use ad-hoc signing.
+          NOTES
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "Vectored $RELEASE_TAG" --notes-file release-notes.md
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          gh release view "$RELEASE_TAG" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
