@@ -59,7 +59,9 @@ npm run release:local
 
 Outputs are collected in `release/v0.1.0/<target>/`. Each filename includes the version and Rust target, and each target includes SHA-256 checksums, the MIT license, and a JSON manifest with the source commit and whether the working tree had changes. Mac releases include both a DMG and a ZIP of the app. An optional target can be passed, for example `npm run release:local -- x86_64-apple-darwin` after installing that Rust target on a Mac. Windows and Linux installers require their respective build hosts.
 
-For all platforms, run **Desktop builds** from GitHub Actions. Once the build passes, tag the same commit and push the tag:
+For all platforms, run **Desktop builds** from GitHub Actions. Enable **Create the version tag and draft release after all builds pass** to have CI tag the built commit and attach every artifact automatically. Leave it disabled for a build without a release.
+
+You can also trigger a release by tagging a commit yourself:
 
 ```sh
 git tag -a v0.1.0 -m "Vectored v0.1.0"
