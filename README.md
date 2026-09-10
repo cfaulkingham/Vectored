@@ -73,3 +73,7 @@ npm run desktop:check
 Use `package-lock.json` and `src-tauri/Cargo.lock` for reproducible builds. The older `bun.lock` predates the desktop setup; npm is the documented package manager. The frontend includes tests for native save cancellation, write errors, binary exports, Windows/macOS path handling, browser downloads, and the editor's geometry operations.
 
 The Tauri setup follows its [Vite integration](https://v2.tauri.app/start/frontend/vite/), [dialog](https://v2.tauri.app/plugin/dialog/), and [filesystem](https://v2.tauri.app/plugin/file-system/) guides.
+
+## License
+
+Licensed under the [MIT License](LICENSE). Copyright © 2026 Colin Faulkingham.
